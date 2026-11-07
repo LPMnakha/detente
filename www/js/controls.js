@@ -6,7 +6,7 @@ export function createControls(camera, dom, colliders, { eye = 1.6, radius = 0.2
   const st = {
     pos: new THREE.Vector3(0.6, eye, 2.2),
     yaw: 0, // 0 = regarde vers -z (nord, la cheminée)
-    pitch: -0.06,
+    pitch: -0.24,
     vel: new THREE.Vector3(),
     keys: new Set(),
     joy: { id: null, ox: 0, oy: 0, x: 0, y: 0 },

@@ -8,6 +8,7 @@ import { createOutside } from './outside.js';
 import { createWeather, seasonOf } from './weather.js';
 import { createRomi } from './romi.js';
 import { createInteract } from './interact.js';
+import { createEvents } from './events.js';
 
 const mobile = matchMedia('(pointer: coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const canvas = document.getElementById('c');
@@ -40,6 +41,9 @@ const lamps = cabin.lights.map((l) => {
   scene.add(p);
   return { light: p, strength: l.strength };
 });
+
+// fêtes de l'année (avant Romi : le sapin de Noël devient un obstacle)
+const events = createEvents(scene, { colliders: cabin.colliders });
 
 const controls = createControls(camera, canvas, cabin.colliders);
 
@@ -85,6 +89,8 @@ document.getElementById('enter').addEventListener('click', async () => {
   intro.classList.add('gone');
   controls.state.enabled = true;
   soundBtn.hidden = false;
+  // accueil : Romi vient te voir
+  setTimeout(() => romi.welcome(controls.state.pos), 900);
   try {
     audio = audio || createFireAudio();
     await audio?.start();
@@ -129,6 +135,7 @@ function frame(now) {
     if (audio) audio.setPurr(rs.purr / (1 + dRomi * dRomi * 0.3));
   }
   fire.update(t, dt);
+  events.update(t, dt, sky.state);
   if (audio) {
     const p = controls.state.pos;
     const dist = Math.hypot(p.x - fire.position.x, p.z - fire.position.z);
@@ -142,4 +149,4 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
-window.__detente = { controls, sky, scene, camera, renderer, weather, romi, interact, ready: true };
+window.__detente = { events, controls, sky, scene, camera, renderer, weather, romi, interact, ready: true };

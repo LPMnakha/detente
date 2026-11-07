@@ -16,6 +16,12 @@ Romi, la chatte de la maison, vit sa vie : elle se promène, dort dans ses coins
 - **Jouer** : bouton « Jouer », puis fais glisser le ruban doré au sol devant elle
 - **Gamelles** (cuisine) : touche une gamelle pour la remplir. Elle les vide au fil des heures, même appli fermée ; si elles sont vides, elle attend à côté, sans jamais être malade.
 
+## Se poser
+
+- **S'asseoir** : touche le canapé, le fauteuil près du feu, la banquette face au lac, le lit ou le banc de l'entrée. Glisse pour regarder autour de toi. Romi vient souvent se coucher sur tes genoux et ronronner (tu peux la caresser).
+- **L'accueil** : en entrant, Romi vient te dire bonjour.
+- **Les fêtes** : la cabane se décore toute seule — Épiphanie, Chandeleur, Saint-Valentin, Pâques, 14 juillet (lampions + feux d'artifice lointains), Halloween, Noël (1er déc. → 6 janv.), Nouvel An (feux d'artifice doux au-dessus du lac). Pour tester : `?fete=noel` (epiphanie, chandeleur, valentin, paques, juillet14, halloween, noel, nouvelan).
+
 ## Jouer
 
 - **iPhone / navigateur** : https://lpmnakha.github.io/detente/

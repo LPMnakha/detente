@@ -434,6 +434,28 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
       st.target = pose || 'loaf';
       Object.assign(st.pose, JSON.parse(JSON.stringify(POSE[st.target])));
     },
+    // Tu t'assois : après quelques secondes elle vient sur tes genoux
+    lapRequest(spot) { st.lapSpot = spot; st.lapT = rand(3, 8); st.lapGoing = false; },
+    lapRelease() {
+      st.lapSpot = null; st.lapGoing = false;
+      if (st.act && st.act.kind === 'lap') {
+        st.act = { kind: 'walk', t: 0 };
+        st.pet = 0;
+        leaveSpot(() => { st.act = null; });
+      } else if (st.act && st.act.kind === 'walk' && st.spotTarget === 'lap') { st.path = []; st.moving = false; st.act = null; }
+    },
+    // Accueil : elle se réveille et vient te voir
+    welcome(player) {
+      st.interact = null;
+      const go = () => {
+        const dx = st.x - player.x, dz = st.z - player.z, d = Math.hypot(dx, dz) || 1;
+        st.act = { kind: 'walk', t: 0 };
+        walkTo(player.x + (dx / d) * 1.5, player.z + (dz / d) * 1.5, () => { st.act = { kind: 'greet', t: 0, dur: 8, welcome: true }; meow(1); setTimeout(() => meow(0.8), 2400); }, 0.85);
+      };
+      const asleep = st.act && st.act.kind === 'rest';
+      st.act = { kind: 'stretch', t: 0, dur: asleep ? 2.4 : 0.01, then: go };
+      if (!asleep) go();
+    },
     snapPose(name) { if (POSE[name]) { Object.assign(st.pose, JSON.parse(JSON.stringify(POSE[name]))); st.target = name; } },
     get mood() { return moodText(); },
   };
@@ -442,6 +464,7 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
     if (st.interact && st.pet > 0.3) return 'ronronne';
     if (st.interact && st.act?.kind === 'interact') return st.act.pose === 'sleep' ? 'somnole' : st.act.pose === 'loaf' ? 'se repose' : 'te regarde';
     if (st.act?.kind === 'wait') return st.act.which === 'food' ? 'attend ses croquettes' : 'attend de l’eau';
+    if (st.act?.kind === 'lap') return 'ronronne sur toi';
     if (st.act?.kind === 'rest' && st.act.pose === 'sleep') return 'dort';
     if (st.act?.kind === 'eat') return st.act.which === 'food' ? 'mange' : 'boit';
     if (st.act?.kind === 'play' || st.act?.kind === 'playAlone') return 'joue';
@@ -465,6 +488,17 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
     st.social = clamp(st.social + dt * 0.002, 0, 1);
 
     // activité courante
+    if (st.lapSpot && !st.lapGoing && !st.interact && st.act?.kind !== 'lap') {
+      st.lapT -= dt;
+      const busy = st.act && (st.act.kind === 'eat' || st.act.kind === 'wait' || st.act.kind === 'greet');
+      if (st.lapT < 0 && !busy && !st.jump) {
+        st.lapGoing = true;
+        st.spotTarget = 'lap';
+        const spot = st.lapSpot;
+        st.act = { kind: 'walk', t: 0 };
+        goToSpot(spot, () => { st.spotTarget = null; if (st.lapSpot === spot) { st.act = { kind: 'lap', t: 0 }; meow(0.5); } else { st.act = null; } });
+      }
+    }
     if (!st.act) decide(env);
     const A = st.act;
     A.t += dt;
@@ -489,7 +523,7 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
         target = 'groom';
         if (A.t > A.dur) st.act = chance(0.3) ? (setAct('stretch', { dur: 2.6 }), st.act) : null;
         break;
-      case 'stretch': target = 'stretch'; if (A.t > A.dur) st.act = null; break;
+      case 'stretch': target = 'stretch'; if (A.t > A.dur) { st.act = null; if (A.then) A.then(); } break;
       case 'eat': {
         target = 'eat';
         const rate = dt / A.dur;
@@ -521,9 +555,12 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
         break;
       }
       case 'greet':
-        target = A.t < 2.5 ? 'greet' : 'sit';
+        target = A.t < (A.welcome ? 5 : 2.5) ? 'greet' : 'sit';
         st.look = 'player';
         if (A.t > A.dur) { st.act = null; st.social = 0.1; }
+        break;
+      case 'lap':
+        target = st.pet > 0.2 ? 'petLoaf' : A.t > 30 ? 'sleep' : 'loaf';
         break;
       case 'interact': {
         const lying = A.pose === 'sleep' || A.pose === 'loaf';
@@ -542,7 +579,7 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
     // caresses -> ronronnement
     if (st.interact && st.interact.petT > 0) st.interact.petT -= dt;
     else st.pet = Math.max(0, st.pet - dt * 0.35);
-    const purrTarget = st.pet > 0.12 ? 0.6 + st.pet * 0.4 : (A.kind === 'rest' && A.pose === 'sleep' && st.interact ? 0.3 : 0);
+    const purrTarget = st.pet > 0.12 ? 0.6 + st.pet * 0.4 : A.kind === 'lap' ? 0.5 : (A.kind === 'rest' && A.pose === 'sleep' && st.interact ? 0.3 : 0);
     st.purr = lerp(st.purr, purrTarget, 1 - Math.exp(-dt * 2));
 
     // déplacement le long du chemin
@@ -657,6 +694,8 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
     const wiggle = st.target === 'crouch' && playing ? Math.sin(time * 10) * 0.008 : 0;
     m.body.position.set(wiggle, P.y + bob, 0);
     m.body.rotation.set(P.p, Math.sin(g * Math.PI * 2) * 0.03 * W, P.r + roll);
+    const rubbing = st.target === 'greet' && st.act?.welcome;
+    if (rubbing) { m.body.position.x += Math.sin(time * 2.2) * 0.014; m.body.rotation.z += Math.sin(time * 2.2) * 0.06; }
     // --- dos : se plie dans les virages, en boule, à l'étirement
     const turnBend = clamp((st.turn || 0) * 0.12, -0.35, 0.35) * W;
     m.chest.rotation.set(P.sp, P.sy + turnBend - Math.sin(g * Math.PI * 2) * 0.05 * W, 0);
@@ -721,6 +760,7 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
       else hp += Math.sin(time * 5) * 0.09;
     }
     if (st.target === 'eat') hp += Math.sin(time * 6) * 0.05;
+    if (st.target === 'greet' && st.act?.welcome) hr += Math.sin(time * 2.2 + 0.6) * 0.25;
     hp -= bob * 6; // la tête reste stable pendant la marche
     m.neck.rotation.set(0, yawRel * 0.4, 0);
     m.head.rotation.set(hp, yawRel * 0.6, hr, 'YXZ');

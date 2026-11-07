@@ -4,10 +4,41 @@ import * as THREE from '../vendor/three.module.min.js';
 
 export function createInteract({ camera, canvas, scene, romi, controls, colliders, getAudio }) {
   const $ = (id) => document.getElementById(id);
-  const ui = { bar: $('actions'), pet: $('btn-pet'), play: $('btn-play'), back: $('btn-back'), tag: $('romi-tag'), hint: $('hint-pill'), cursor: $('pet-cursor') };
+  const ui = { stand: $('btn-stand'), bar: $('actions'), pet: $('btn-pet'), play: $('btn-play'), back: $('btn-back'), tag: $('romi-tag'), hint: $('hint-pill'), cursor: $('pet-cursor') };
   const ray = new THREE.Raycaster();
   const ndc = new THREE.Vector2();
-  let mode = 'explore'; // explore | pet | play | returning
+  let mode = 'explore'; // explore | pet | play | seated | returning
+
+  // ---------- places assises
+  const A3 = (x, z, th, lz) => [x + Math.sin(th) * lz, z + Math.cos(th) * lz];
+  const TH_ARM = Math.PI * 0.62;
+  const SEATS = [
+    { name: 'le canapé', hit: [1.0, 0.42, -2.5, 1.2, 0.55, 0.85, 0], cam: [1.0, 1.02, -2.5], yaw: 0, pitch: -0.3, stand: [2.15, -2.4],
+      lap: { approach: [1.95, -2.7], pos: [1.0, 0.6, -2.82], yaw: -Math.PI / 2 } },
+    { name: 'le canapé', hit: [0.0, 0.42, -2.5, 1.0, 0.55, 0.85, 0], cam: [0.05, 1.02, -2.5], yaw: 0, pitch: -0.3, stand: [-0.9, -1.4],
+      lap: { approach: [1.95, -2.7], pos: [0.05, 0.6, -2.82], yaw: -Math.PI / 2 } },
+    { name: 'le fauteuil', hit: [-1.6, 0.45, -3.9, 1.0, 0.6, 0.9, TH_ARM], cam: ((p) => [p[0], 1.05, p[1]])(A3(-1.6, -3.9, TH_ARM, -0.15)), yaw: TH_ARM + Math.PI, pitch: -0.22, stand: [-0.9, -4.45],
+      lap: { approach: A3(-1.6, -3.9, TH_ARM, 0.85), pos: [A3(-1.6, -3.9, TH_ARM, 0.3)[0], 0.6, A3(-1.6, -3.9, TH_ARM, 0.3)[1]], yaw: TH_ARM + Math.PI / 2 } },
+    { name: 'la banquette', hit: [5.97, 0.3, -5.72, 2.05, 0.55, 0.55, 0], cam: [5.9, 1.0, -5.45], yaw: 0, pitch: -0.2, stand: [5.7, -4.7],
+      lap: { approach: [5.9, -4.95], pos: [5.9, 0.56, -5.88], yaw: Math.PI / 2 } },
+    { name: 'le lit', hit: [6.0, 0.45, 4.85, 1.7, 0.5, 2.2, 0], cam: [6.0, 1.12, 5.42], yaw: 0, pitch: -0.24, stand: [4.75, 3.9],
+      lap: { approach: [4.75, 4.55], pos: [6.0, 0.66, 4.95], yaw: Math.PI / 2 } },
+    { name: 'le banc', hit: [-1.75, 0.3, 5.7, 1.2, 0.55, 0.45, 0], cam: [-1.9, 1.02, 5.72], yaw: -0.6, pitch: -0.25, stand: [-1.75, 4.9],
+      lap: { approach: [-1.3, 4.95], pos: [-1.32, 0.55, 5.66], yaw: Math.PI } },
+  ];
+  const seatHits = [];
+  const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+  SEATS.forEach((S, i) => {
+    const [x, y, z, w, h, d, r] = S.hit;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), hitMat);
+    m.position.set(x, y, z);
+    m.rotation.y = r;
+    m.userData.seat = i;
+    scene.add(m);
+    seatHits.push(m);
+  });
+  let seat = null, seatLook = { yaw: 0, pitch: 0 }, seats = 0;
+  const seatQ = new THREE.Quaternion(), eul = new THREE.Euler(0, 0, 0, 'YXZ');
   const saved = { pos: new THREE.Vector3(), quat: new THREE.Quaternion() };
   const camGoal = new THREE.Vector3(), lookGoal = new THREE.Vector3(), tmp = new THREE.Vector3(), tmp2 = new THREE.Vector3();
   const qGoal = new THREE.Quaternion(), m4 = new THREE.Matrix4();
@@ -124,10 +155,32 @@ export function createInteract({ camera, canvas, scene, romi, controls, collider
       canvas.setPointerCapture?.(e.pointerId);
       handleDrag(e, true);
     }
+    if (mode === 'seated') {
+      canvas.setPointerCapture?.(e.pointerId);
+      const h = hitRomi(e.clientX, e.clientY);
+      pointers.get(e.pointerId).petting = !!h;
+    }
   });
   canvas.addEventListener('pointermove', (e) => {
     const prev = pointers.get(e.pointerId);
     if (mode === 'pet' && prev) handleDrag(e, false, prev);
+    if (mode === 'seated' && prev) {
+      const h = prev.petting ? hitRomi(e.clientX, e.clientY) : null;
+      if (h) {
+        // caresser Romi depuis le siège
+        ui.cursor.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+        ui.cursor.classList.add('on');
+        const d = Math.hypot(e.clientX - prev.x, e.clientY - prev.y);
+        if (d > 0.5) romi.pet(Math.min(0.06, d * 0.0025), h.object.userData.part || 'corps');
+      } else {
+        ui.cursor.classList.remove('on');
+        // regarder autour de soi, assise
+        seatLook.yaw = Math.max(-1.5, Math.min(1.5, seatLook.yaw - (e.clientX - prev.x) * 0.004));
+        seatLook.pitch = Math.max(-0.8, Math.min(0.6, seatLook.pitch - (e.clientY - prev.y) * 0.004));
+      }
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, petting: prev.petting });
+      return;
+    }
     if (mode === 'play' && (prev || e.pointerType === 'mouse')) handleDrag(e, false, prev);
     if (prev) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
   });
@@ -143,9 +196,43 @@ export function createInteract({ camera, canvas, scene, romi, controls, collider
   canvas.addEventListener('pointerup', up);
   canvas.addEventListener('pointercancel', up);
 
+  function sit(i) {
+    seat = SEATS[i];
+    seats++;
+    seatLook = { yaw: 0, pitch: 0 };
+    controls.state.enabled = false;
+    controls.state.override = true;
+    controls.state.keys.clear();
+    mode = 'seated';
+    ui.stand.classList.add('on');
+    ui.hint.classList.remove('on');
+    hintTxt = '';
+    romi.lapRequest(seat.lap);
+  }
+  function standUp() {
+    if (mode !== 'seated') return;
+    romi.lapRelease();
+    ui.stand.classList.remove('on');
+    ui.cursor.classList.remove('on');
+    const cs = controls.state;
+    cs.pos.set(seat.stand[0], 1.6, seat.stand[1]);
+    cs.yaw = seat.yaw + seatLook.yaw;
+    cs.pitch = 0;
+    saved.pos.copy(cs.pos);
+    saved.quat.setFromEuler(eul.set(0, cs.yaw, 0, 'YXZ'));
+    mode = 'returning';
+    seat = null;
+  }
+  ui.stand.addEventListener('click', standUp);
+
   function tap(x, y) {
     const h = hitRomi(x, y);
     if (h && h.distance < 4.5) { enter(); return; }
+    const sh = rayFrom(x, y).intersectObjects(seatHits, false)[0];
+    if (sh && sh.distance < 3.6) {
+      const b0 = rayFrom(x, y).intersectObjects(romi.bowls.pick, false)[0];
+      if (!b0 || b0.distance > sh.distance) { sit(sh.object.userData.seat); return; }
+    }
     const b = rayFrom(x, y).intersectObjects(romi.bowls.pick, false)[0];
     if (b && b.distance < 3.4) {
       const which = b.object.userData.bowl;
@@ -215,6 +302,13 @@ export function createInteract({ camera, canvas, scene, romi, controls, collider
       // nom + humeur
       tagT -= dt;
       if (tagT < 0) { tagT = 0.5; ui.tag.textContent = `Romi · ${romi.mood}`; }
+    } else if (mode === 'seated') {
+      if (controls.state.keys.size) { standUp(); return; }
+      const k = 1 - Math.exp(-dt * 3);
+      camGoal.set(...seat.cam);
+      camera.position.lerp(camGoal, k);
+      seatQ.setFromEuler(eul.set(seat.pitch + seatLook.pitch, seat.yaw + seatLook.yaw, 0, 'YXZ'));
+      camera.quaternion.slerp(seatQ, k);
     } else if (mode === 'returning') {
       const k = 1 - Math.exp(-dt * 5);
       camera.position.lerp(saved.pos, k);
@@ -232,6 +326,7 @@ export function createInteract({ camera, canvas, scene, romi, controls, collider
       const st = romi.state;
       if (dB < 2.4 && (st.food < 0.9 || st.water < 0.9)) setHint('Touche une gamelle pour la remplir');
       else if (dC < 3.2 && interactions < 2 && controls.state.enabled) setHint('Touche Romi pour la caresser');
+      else if (seats < 1 && controls.state.enabled && SEATS.some((S) => Math.hypot(p.x - S.hit[0], p.z - S.hit[2]) < 2.0)) setHint('Touche un siège pour t\u2019asseoir');
       else setHint('');
     }
 
@@ -285,5 +380,5 @@ export function createInteract({ camera, canvas, scene, romi, controls, collider
     }
   }
 
-  return { update, get mode() { return mode; }, enter, exit, switchMode };
+  return { update, get mode() { return mode; }, enter, exit, switchMode, sit, standUp, seats: SEATS };
 }
