@@ -2,7 +2,7 @@
 // gamelles à remplir. Tout se fait d'un simple toucher (ou clic).
 import * as THREE from '../vendor/three.module.min.js';
 
-export function createInteract({ camera, canvas, scene, romi, controls, colliders, getAudio, door, pontoon }) {
+export function createInteract({ camera, canvas, scene, romi, controls, colliders, getAudio, door, pontoon, targets = [], hintFn = null }) {
   const $ = (id) => document.getElementById(id);
   const ui = { stand: $('btn-stand'), bar: $('actions'), pet: $('btn-pet'), play: $('btn-play'), back: $('btn-back'), tag: $('romi-tag'), hint: $('hint-pill'), cursor: $('pet-cursor') };
   const ray = new THREE.Raycaster();
@@ -241,6 +241,13 @@ export function createInteract({ camera, canvas, scene, romi, controls, collider
       const dh = rayFrom(x, y).intersectObjects(door.pick, false)[0];
       if (dh && dh.distance < 3.4) { door.open(); doorUsed++; return; }
     }
+    // jardin, pots, frigo...
+    let best = null;
+    for (const T of targets) {
+      const th = rayFrom(x, y).intersectObjects(T.pick, false)[0];
+      if (th && th.distance < T.range && (!best || th.distance < best.h.distance)) best = { T, h: th };
+    }
+    if (best && best.T.onTap(best.h) !== false) return;
     const sh = rayFrom(x, y).intersectObjects(seatHits, false)[0];
     if (sh && sh.distance < 3.6) {
       const b0 = rayFrom(x, y).intersectObjects(romi.bowls.pick, false)[0];
@@ -338,7 +345,9 @@ export function createInteract({ camera, canvas, scene, romi, controls, collider
       const dB = Math.hypot(p.x - (-4.12), p.z - (-0.4));
       const st = romi.state;
       const dDoor = door ? Math.hypot(p.x - door.center.x, p.z - door.center.z) : 99;
-      if (door && doorUsed < 1 && dDoor < 2.6 && !door.state.open) setHint(p.z < 6.1 ? 'Touche la porte pour sortir' : 'Touche la porte pour rentrer');
+      const gh = hintFn ? hintFn(p) : '';
+      if (gh) setHint(gh);
+      else if (door && doorUsed < 1 && dDoor < 2.6 && !door.state.open) setHint(p.z < 6.1 ? 'Touche la porte pour sortir' : 'Touche la porte pour rentrer');
       else if (dB < 2.4 && (st.food < 0.9 || st.water < 0.9)) setHint('Touche une gamelle pour la remplir');
       else if (dC < 3.2 && interactions < 2 && controls.state.enabled) setHint('Touche Romi pour la caresser');
       else if (seats < 1 && controls.state.enabled && SEATS.some((S) => Math.hypot(p.x - S.hit[0], p.z - S.hit[2]) < 2.0)) setHint('Touche un siège pour t\u2019asseoir');

@@ -127,7 +127,7 @@ export function buildWand() {
 }
 
 // ---------------------------------------------------------------- Romi
-export function createRomi(scene, { colliders, onMeow: meowCb, ground, clampOut } = {}) {
+export function createRomi(scene, { colliders, onMeow: meowCb, ground, clampOut, route } = {}) {
   const model = buildRomiModel();
   scene.add(model.root);
   const bowls = buildBowls(scene);
@@ -585,15 +585,25 @@ export function createRomi(scene, { colliders, onMeow: meowCb, ground, clampOut 
         const p = env.player;
         const dx = st.x - p.x, dz = st.z - p.z, d = Math.hypot(dx, dz) || 1;
         A.re -= dt;
-        if (d > 2.2 && A.re < 0) {
+        const pMoved = !A.lastP || Math.hypot(p.x - A.lastP[0], p.z - A.lastP[1]) > 1.0;
+        if (d > 2.2 && A.re < 0 && (!st.moving || pMoved)) {
           A.re = 0.6;
-          const tgt = { x: p.x + (dx / d) * 1.1, z: p.z + (dz / d) * 1.1, y: 0 };
-          if (clampOut) clampOut(tgt);
-          st.path = [[tgt.x, tgt.z]];
-          st.speed = d > 5 ? 1.15 : 0.6;
-          st.moving = true;
-          st.onArrive = () => {};
-          A.sniff = 0;
+          A.lastP = [p.x, p.z];
+          // quelques points possibles près de toi ; on garde le premier atteignable
+          for (const k of [1.1, 0.75, 0.45]) {
+            const tgt = { x: p.x + (dx / d) * k, z: p.z + (dz / d) * k, y: 0 };
+            if (clampOut) clampOut(tgt);
+            const path = route ? route(st.x, st.z, tgt.x, tgt.z) : [[tgt.x, tgt.z]];
+            let ok = true, cx = st.x, cz = st.z;
+            for (const [px, pz] of path) { if (!segClear(cx, cz, px, pz, 0.1)) { ok = false; break; } cx = px; cz = pz; }
+            if (!ok) continue;
+            st.path = path;
+            st.speed = d > 5 ? 1.15 : 0.6;
+            st.moving = true;
+            st.onArrive = () => {};
+            A.sniff = 0;
+            break;
+          }
         }
         if (!st.moving) {
           A.idleT = (A.idleT || 0) + dt;
@@ -602,7 +612,7 @@ export function createRomi(scene, { colliders, onMeow: meowCb, ground, clampOut 
             A.idleT = 0;
             const a = rand(0, Math.PI * 2), tgt = { x: p.x + Math.cos(a) * rand(0.8, 1.6), z: p.z + Math.sin(a) * rand(0.8, 1.6), y: 0 };
             if (clampOut) clampOut(tgt);
-            st.path = [[tgt.x, tgt.z]]; st.speed = 0.4; st.moving = true; st.onArrive = () => { A.sniff = rand(2, 4); };
+            if (segClear(st.x, st.z, tgt.x, tgt.z, 0.1)) { st.path = [[tgt.x, tgt.z]]; st.speed = 0.4; st.moving = true; st.onArrive = () => { A.sniff = rand(2, 4); }; }
           }
           if (A.sniff > 0) A.sniff -= dt;
         }

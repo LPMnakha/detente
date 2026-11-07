@@ -675,11 +675,7 @@ function kitchen(B, lights) {
   sp.rotateX(Math.PI / 2);
   sp.translate(-5.6, 1.19, Z + 0.14);
   B.add(sp, C.brass);
-  // herbes aromatiques sur le rebord de fenêtre
-  for (const x of [-6.35, -5.95, -5.55, -5.15]) {
-    B.cyl(x, 1.08, Z - 0.05, 0.06, 0.05, 0.1, C.pot, 7);
-    for (let i = 0; i < 3; i++) B.blob(x + (R() - 0.5) * 0.06, 1.18 + R() * 0.05, Z - 0.05 + (R() - 0.5) * 0.05, 0.05, 0.06, 0.05, pick(C.leaf), 0);
-  }
+  // (les pots d'aromatiques du rebord sont gérés par garden.js)
   // cuisinière à bois (noire) + conduit
   B.box(-7.9, 0, Z, -7.0, 0.85, Z + 0.68, C.metal, 'plain', { collide: true });
   B.box(-7.92, 0.85, Z, -6.98, 0.9, Z + 0.7, 0x3c3734);

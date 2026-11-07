@@ -10,6 +10,7 @@ import { createRomi } from './romi.js';
 import { createInteract } from './interact.js';
 import { createEvents } from './events.js';
 import { createDoor } from './door.js';
+import { createGarden } from './garden.js';
 
 const mobile = matchMedia('(pointer: coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const canvas = document.getElementById('c');
@@ -46,18 +47,23 @@ const lamps = cabin.lights.map((l) => {
 // fêtes de l'année (avant Romi : le sapin de Noël devient un obstacle)
 const events = createEvents(scene, { colliders: cabin.colliders });
 
-// porte d'entrée (s'ouvre au toucher)
 let audio = null;
+// potager (serre), pots d'aromatiques, frigo
+const garden = createGarden(scene, { colliders: cabin.colliders, getAudio: () => audio });
+const groundAt = (x, z) => garden.groundAt(x, z, outside.groundAt);
+
+// porte d'entrée (s'ouvre au toucher)
 const door = createDoor(scene, cabin.colliders, { onSound: (k) => audio && audio.door(k) });
 
 const controls = createControls(camera, canvas, cabin.colliders);
-controls.setWorld({ ground: outside.groundAt, clamp: outside.clampOutside });
+controls.setWorld({ ground: groundAt, clamp: outside.clampOutside });
 
 // Romi, la chatte de la maison
 const romi = createRomi(scene, {
   colliders: cabin.colliders,
-  ground: outside.groundAt,
+  ground: groundAt,
   clampOut: outside.clampOutside,
+  route: garden.route,
   onMeow: (v, s) => {
     if (!audio) return;
     const p = controls.state.pos;
@@ -65,7 +71,7 @@ const romi = createRomi(scene, {
     audio.meow(v / (1 + d * d * 0.12));
   },
 });
-const interact = createInteract({ camera, canvas, scene, romi, controls, colliders: cabin.colliders, getAudio: () => audio, door, pontoon: outside.pontoon });
+const interact = createInteract({ camera, canvas, scene, romi, controls, colliders: cabin.colliders, getAudio: () => audio, door, pontoon: outside.pontoon, targets: garden.targets, hintFn: (p) => garden.hint(p) });
 const clock = makeClock();
 
 // météo en direct à Annecy (affichée discrètement sur l'écran d'accueil)
@@ -119,6 +125,7 @@ let lastStep = null, stepDist = 0;
 let snowCover = 0;
 function floorAt(x, z) {
   const inRect = (x0, z0, x1, z1) => x > x0 && x < x1 && z > z0 && z < z1;
+  if (x > 7.6 && x < 13.6 && z > 9.4 && z < 14.0) return z > 11.25 && z < 12.15 ? 'ponton' : 'gravier'; // serre
   if (z > 6.12) {
     // dehors
     const pt = outside.pontoon;
@@ -179,6 +186,7 @@ function frame(now) {
   }
   fire.update(t, dt);
   events.update(t, dt, sky.state);
+  garden.update(t, dt, sky.state, wNow, controls.state.pos);
   if (audio) {
     const p = controls.state.pos;
     const dist = Math.hypot(p.x - fire.position.x, p.z - fire.position.z);
@@ -195,4 +203,4 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
-window.__detente = { door, outside, events, controls, sky, scene, camera, renderer, weather, romi, interact, ready: true };
+window.__detente = { garden, door, outside, events, controls, sky, scene, camera, renderer, weather, romi, interact, ready: true };

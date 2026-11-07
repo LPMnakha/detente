@@ -16,6 +16,14 @@ Romi, la chatte de la maison, vit sa vie : elle se promène, dort dans ses coins
 - **Jouer** : bouton « Jouer », puis fais glisser le ruban doré au sol devant elle
 - **Gamelles** (cuisine) : touche une gamelle pour la remplir. Elle les vide au fil des heures, même appli fermée ; si elles sont vides, elle attend à côté, sans jamais être malade.
 
+## Le potager
+
+- **La serre**, à droite de la maison en sortant : 6 bacs. Touche un bac vide pour choisir quoi planter (tomates, carottes, salades, radis, petits pois, potirons, fraises). Ça pousse **en temps réel** (radis ~1,5 jour, tomates et potirons ~1 semaine).
+- **Arroser** : touche un bac planté. Ça pousse deux fois plus vite pendant 12 h. Rien ne fane ni ne meurt jamais.
+- **Cueillir** : touche un bac mûr. La récolte va dans le **frigo** de la cuisine (touche-le pour l'ouvrir).
+- **Aromatiques** : 4 pots sur le rebord de la fenêtre de la cuisine (basilic, romarin, menthe, ciboulette). On en cueille un bouquet, et ça repousse.
+- Pour tester en accéléré : `?pousse=500`.
+
 ## Se poser
 
 - **S'asseoir** : touche le canapé, le fauteuil près du feu, la banquette face au lac, le lit ou le banc de l'entrée. Glisse pour regarder autour de toi. Romi vient souvent se coucher sur tes genoux et ronronner (tu peux la caresser).

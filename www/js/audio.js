@@ -313,9 +313,28 @@ export function createFireAudio() {
   }
   let outK = 0, lastRain = 0, lastWind = 0;
 
+  // cueillette : petit « pop » feutré ; frigo : joint qui décolle, petit bruit sourd
+  function pick() {
+    const t = ctx.currentTime;
+    for (let i = 0; i < 3; i++) {
+      const o = ctx.createOscillator(); o.type = 'sine';
+      const f = 520 + i * 140 + Math.random() * 60;
+      o.frequency.setValueAtTime(f, t + i * 0.09); o.frequency.exponentialRampToValueAtTime(f * 0.6, t + i * 0.09 + 0.08);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t + i * 0.09); g.gain.exponentialRampToValueAtTime(0.07, t + i * 0.09 + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + i * 0.09 + 0.1);
+      o.connect(g).connect(master); o.start(t + i * 0.09); o.stop(t + i * 0.09 + 0.12);
+    }
+  }
+  function fridge(open) {
+    const t = ctx.currentTime;
+    const s = ctx.createBufferSource(); s.buffer = buf;
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = open ? 900 : 300; f.Q.value = 1.5;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(open ? 0.08 : 0.14, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + (open ? 0.18 : 0.12));
+    s.connect(f).connect(g).connect(master); s.start(t, Math.random() * 2); s.stop(t + 0.2);
+  }
+
   let on = true;
   return {
-    door,
+    door, pick, fridge,
     setShore(k) { shoreGain.gain.setTargetAtTime(k * 0.3, ctx.currentTime, 0.8); },
     setOutside(k) {
       outK = k;

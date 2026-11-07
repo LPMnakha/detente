@@ -7,6 +7,8 @@ import { Builder, mergeColored } from './builder.js';
 import { buildTown } from './town.js';
 
 export const WATER = -2.6;
+// emprise de la serre-potager (à l'est de la terrasse)
+export const GARDEN = { x0: 7.6, x1: 13.6, z0: 9.4, z1: 14.0 };
 const NZ = makeNoise(7);
 const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -210,10 +212,11 @@ export function createOutside(scene, { season, mobile = false, shadows = true })
     list.push({ x, z, h, s: (0.85 + rnd() * 0.85) * (r < 50 ? 1.2 : 1), rot: rnd() * 6.28, r });
   }
   // quelques arbres choisis pour encadrer la vue
-  for (const [x, z, b] of [[13.5, 3], [-12.5, 2, 1], [12.5, 12], [-11, 13, 1], [-14, 20], [16, 19, 1], [-9.5, -12], [11, -11, 1], [4, -13], [-3, -14, 1]]) {
+  for (const [x, z, b] of [[13.5, 3], [-12.5, 2, 1], [17, 12.5], [-11, 13, 1], [-14, 20], [16, 19, 1], [-9.5, -12], [11, -11, 1], [4, -13], [-3, -14, 1]]) {
     (b ? spots.birch : spots.spruce).push({ x, z, h: height(x, z), s: 1.3 + rnd() * 0.3, rot: rnd() * 6.28, r: Math.hypot(x, z) });
   }
 
+  for (const k of ['spruce', 'birch']) spots[k] = spots[k].filter((s) => !(s.x > GARDEN.x0 - 2.5 && s.x < GARDEN.x1 + 2.5 && s.z > GARDEN.z0 - 2.5 && s.z < GARDEN.z1 + 2.5));
   const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), v3 = new THREE.Vector3(), sc = new THREE.Vector3();
   const setM = (s) => m4.compose(v3.set(s.x, s.h - 0.15, s.z), q.setFromAxisAngle(up, s.rot), sc.setScalar(s.s));
   const instanced = (geo, mat, list, castNear, fn) => {
@@ -245,6 +248,7 @@ export function createOutside(scene, { season, mobile = false, shadows = true })
       const x = x0 + rnd() * (x1 - x0), z = z0 + rnd() * (z1 - z0);
       if (Math.abs(x) < 8.7 && Math.abs(z) < 6.7) continue;
       if (Math.abs(x - 0.25) < 1.8 && z > 6 && z < 8.2) continue; // terrasse
+      if (x > GARDEN.x0 - 0.8 && x < GARDEN.x1 + 0.8 && z > GARDEN.z0 - 0.8 && z < GARDEN.z1 + 0.8) continue; // serre
       if (avoidPath && Math.abs(x - PATH_X(z)) < 0.7 && z > 6 && z < 40) continue;
       const h = height(x, z);
       if (h < WATER + 0.3 || z > shoreNear(x) - 1) continue;
@@ -527,7 +531,9 @@ export function createOutside(scene, { season, mobile = false, shadows = true })
     }
     const zz = Math.max(p.z, 6.2);
     const span = smooth(7.5, 22, zz);
-    const xmin = lerp(-2.0, -15, span), xmax = lerp(2.6, 17, span);
+    const xmin = lerp(-2.0, -15, span);
+    let xmax = lerp(2.6, 17, span);
+    if (zz > 7.3 && zz < GARDEN.z1 + 2.5) xmax = Math.max(xmax, GARDEN.x1 + 0.9); // chemin vers la serre
     p.x = Math.min(xmax, Math.max(xmin, p.x));
     const edge = shoreWalk(p.x);
     if (p.z > edge && !inRect(PONTOON, p.x, p.z)) p.z = edge;
