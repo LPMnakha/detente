@@ -102,10 +102,16 @@ export function createControls(camera, dom, colliders, { eye = 1.6, radius = 0.2
     st.vel.lerp(want, 1 - Math.exp(-dt * 7));
     st.pos.addScaledVector(st.vel, dt);
     collide(st.pos);
+    // dehors : on reste dans la zone de promenade, et on suit le terrain
+    if (world.clamp && st.pos.z > 6.12) world.clamp(st.pos);
+    const gy = world.ground ? world.ground(st.pos.x, st.pos.z) : 0;
+    st.groundY = st.groundY === undefined ? gy : st.groundY + (gy - st.groundY) * (1 - Math.exp(-dt * 9));
+    st.pos.y = eye + st.groundY;
     if (st.override) return; // la caméra est pilotée ailleurs (vue rapprochée de Romi)
     camera.position.copy(st.pos);
     camera.rotation.set(st.pitch, st.yaw, 0, 'YXZ');
   }
 
-  return { update, state: st };
+  const world = {};
+  return { update, state: st, setWorld(w) { Object.assign(world, w); }, groundAt: (x, z) => (world.ground ? world.ground(x, z) : 0) };
 }

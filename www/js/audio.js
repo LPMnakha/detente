@@ -208,9 +208,37 @@ export function createFireAudio() {
 
   // ---------- pas : parquet (sourd, petit craquement parfois), carrelage (plus net), tapis (feutré)
   let stepN = 0;
+  // pas dehors : herbe (froissement), gravier (petits craquements), neige (crissement), ponton (bois creux)
+  function stepOutdoor(surface, t, vol) {
+    const burst = (at, dur, type, freq, q, g) => {
+      const s = ctx.createBufferSource();
+      s.buffer = buf;
+      const f = ctx.createBiquadFilter();
+      f.type = type; f.frequency.value = freq; f.Q.value = q;
+      const gg = ctx.createGain();
+      gg.gain.setValueAtTime(0.0001, at);
+      gg.gain.exponentialRampToValueAtTime(g * vol, at + 0.012);
+      gg.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+      s.connect(f).connect(gg).connect(master);
+      s.start(at, Math.random() * 3); s.stop(at + dur + 0.02);
+    };
+    if (surface === 'herbe') { burst(t, 0.16, 'bandpass', 2600, 0.7, 0.07); burst(t + 0.03, 0.12, 'lowpass', 400, 0.7, 0.08); }
+    else if (surface === 'gravier') { for (let i = 0; i < 7; i++) burst(t + i * 0.012 + Math.random() * 0.01, 0.03, 'bandpass', 2500 + Math.random() * 2500, 2, 0.09); burst(t, 0.1, 'lowpass', 500, 0.7, 0.08); }
+    else if (surface === 'neige') { for (let i = 0; i < 6; i++) burst(t + i * 0.022, 0.05, 'bandpass', 1100 + Math.random() * 600, 1.5, 0.08); }
+    else if (surface === 'ponton') {
+      const o = ctx.createOscillator();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(170, t); o.frequency.exponentialRampToValueAtTime(110, t + 0.18);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.13 * vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      o.connect(g).connect(master); o.start(t); o.stop(t + 0.25);
+      burst(t, 0.12, 'bandpass', 320, 4, 0.1);
+    }
+  }
   function step(surface = 'bois') {
     const t = ctx.currentTime + 0.005;
     stepN++;
+    if (['herbe', 'gravier', 'neige', 'ponton'].includes(surface)) { stepOutdoor(surface, t, (stepN % 2 ? 1 : 0.85) * (0.85 + Math.random() * 0.3)); return; }
     const heel = stepN % 2 ? 1 : 0.85; // léger déséquilibre gauche/droite
     const vol = (surface === 'tapis' ? 0.35 : surface === 'carrelage' ? 0.75 : 0.9) * heel * (0.85 + Math.random() * 0.3);
     // impact sourd
@@ -255,8 +283,46 @@ export function createFireAudio() {
     }
   }
 
+  // clapotis du fjord
+  const shoreSrc = ctx.createBufferSource();
+  shoreSrc.buffer = buf; shoreSrc.loop = true; shoreSrc.playbackRate.value = 0.7;
+  const shoreLp = ctx.createBiquadFilter(); shoreLp.type = 'lowpass'; shoreLp.frequency.value = 520;
+  const shoreAm = ctx.createGain(); shoreAm.gain.value = 0.6;
+  const shoreLfo = ctx.createOscillator(); shoreLfo.frequency.value = 0.16;
+  const shoreLfoG = ctx.createGain(); shoreLfoG.gain.value = 0.4;
+  shoreLfo.connect(shoreLfoG).connect(shoreAm.gain);
+  const shoreGain = ctx.createGain(); shoreGain.gain.value = 0;
+  shoreSrc.connect(shoreLp).connect(shoreAm).connect(shoreGain).connect(master);
+  shoreSrc.start(0, 0.4); shoreLfo.start();
+  // porte : léger grincement, puis petit bruit sourd à la fermeture
+  function door(kind) {
+    const t = ctx.currentTime;
+    if (kind === 'shut') {
+      const o = ctx.createOscillator(); o.type = 'sine';
+      o.frequency.setValueAtTime(90, t); o.frequency.exponentialRampToValueAtTime(50, t + 0.2);
+      const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.18, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.3);
+      o.connect(g).connect(master); o.start(t); o.stop(t + 0.32);
+      return;
+    }
+    const o = ctx.createOscillator(); o.type = 'triangle';
+    const f0 = kind === 'open' ? 210 : 180;
+    o.frequency.setValueAtTime(f0, t); o.frequency.linearRampToValueAtTime(f0 * 0.75, t + 0.7);
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f0 * 3; bp.Q.value = 9;
+    const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.035, t + 0.12); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.75);
+    o.connect(bp).connect(g).connect(master); o.start(t); o.stop(t + 0.8);
+  }
+  let outK = 0, lastRain = 0, lastWind = 0;
+
   let on = true;
   return {
+    door,
+    setShore(k) { shoreGain.gain.setTargetAtTime(k * 0.3, ctx.currentTime, 0.8); },
+    setOutside(k) {
+      outK = k;
+      rainLp.frequency.setTargetAtTime(2600 + k * 3800, ctx.currentTime, 0.8);
+      rainGain.gain.setTargetAtTime(lastRain * 0.22 * (1 + k * 0.7), ctx.currentTime, 0.8);
+      windGain.gain.setTargetAtTime(Math.max(0, lastWind - 0.25) * 0.05 * (1 + k * 1.2), ctx.currentTime, 0.8);
+    },
     meow, kibble, pour, step,
     setPurr(level) { purrGain.gain.setTargetAtTime(Math.min(1.4, level * 1.25), ctx.currentTime, 0.3); },
     ctx,
@@ -269,8 +335,9 @@ export function createFireAudio() {
       fireBus.gain.setTargetAtTime(Math.min(1, v * 1.3), ctx.currentTime, 0.25);
     },
     setWeather(rain, wind) {
-      rainGain.gain.setTargetAtTime(rain * 0.22, ctx.currentTime, 2);
-      windGain.gain.setTargetAtTime(Math.max(0, wind - 0.25) * 0.05, ctx.currentTime, 2);
+      lastRain = rain; lastWind = wind;
+      rainGain.gain.setTargetAtTime(rain * 0.22 * (1 + outK * 0.7), ctx.currentTime, 2);
+      windGain.gain.setTargetAtTime(Math.max(0, wind - 0.25) * 0.05 * (1 + outK * 1.2), ctx.currentTime, 2);
     },
     toggle() {
       on = !on;

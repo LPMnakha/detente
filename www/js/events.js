@@ -428,10 +428,10 @@ function makeFireworks(parent) {
   function spawn() {
     const b = bursts.find((x) => x.t > 3) || bursts[0];
     b.t = 0;
-    b.x = 8 + (Math.random() - 0.5) * 70; b.y = 16 + Math.random() * 14; b.z = -110 - Math.random() * 40;
+    b.x = (Math.random() - 0.5) * 320; b.y = 70 + Math.random() * 60; b.z = 480 + Math.random() * 220;
     b.c.set(palette[Math.floor(Math.random() * palette.length)]);
     const i0 = bursts.indexOf(b) * N;
-    const sp = 7 + Math.random() * 3;
+    const sp = 18 + Math.random() * 8;
     for (let i = 0; i < N; i++) {
       const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, s = Math.sqrt(1 - u * u);
       const v = sp * (0.85 + Math.random() * 0.15);
@@ -449,7 +449,7 @@ function makeFireworks(parent) {
           const k = (bi * N + i) * 3;
           const damp = (1 - Math.exp(-T * 1.6)) / 1.6;
           pos[k] = b.x + vel[k] * damp;
-          pos[k + 1] = b.y + vel[k + 1] * damp - 0.6 * T * T;
+          pos[k + 1] = b.y + vel[k + 1] * damp - 1.5 * T * T;
           pos[k + 2] = b.z + vel[k + 2] * damp;
           const tw = 0.75 + 0.25 * Math.sin(T * 9 + i);
           col[k] = b.c.r * fade * tw; col[k + 1] = b.c.g * fade * tw; col[k + 2] = b.c.b * fade * tw;

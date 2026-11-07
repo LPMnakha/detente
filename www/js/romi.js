@@ -127,7 +127,7 @@ export function buildWand() {
 }
 
 // ---------------------------------------------------------------- Romi
-export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
+export function createRomi(scene, { colliders, onMeow: meowCb, ground, clampOut } = {}) {
   const model = buildRomiModel();
   scene.add(model.root);
   const bowls = buildBowls(scene);
@@ -260,7 +260,7 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
 
   // ---------- déplacements
   function goTo(x, z, speed = 0.42) {
-    st.path = findPath(st.x, st.z, x, z);
+    st.path = st.outside ? [[x, z]] : findPath(st.x, st.z, x, z);
     st.speed = speed;
     st.moving = st.path.length > 0;
   }
@@ -304,7 +304,27 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
   // ---------- activités
   const say = (fn) => fn;
   function setAct(kind, opts = {}) { if (st.interact) return; st.act = { kind, t: 0, ...opts }; st.mood = ''; }
+  // ---------- dehors : elle te suit partout, et rentre avec toi
+  const DOOR_IN = [0.25, 5.25], DOOR_OUT = [0.25, 7.3];
+  function crossTo(outside) {
+    st.crossing = true;
+    st.lapSpot = null; st.lapGoing = false;
+    st.act = { kind: 'walk', t: 0 };
+    const after = () => { st.outside = outside; st.crossing = false; st.act = outside ? { kind: 'follow', t: 0, re: 0 } : { kind: 'idle', t: 0, dur: rand(2, 5), pose: 'sit' }; };
+    if (outside) {
+      leaveSpot(() => {
+        goTo(DOOR_IN[0], DOOR_IN[1], 0.95);
+        st.onArrive = () => { st.path = [[DOOR_OUT[0], DOOR_OUT[1]]]; st.speed = 0.85; st.moving = true; st.onArrive = after; };
+      });
+    } else {
+      st.spot = null;
+      st.path = [[DOOR_OUT[0], DOOR_OUT[1]], [DOOR_IN[0], DOOR_IN[1]]];
+      st.speed = 1.0; st.moving = true; st.onArrive = after;
+    }
+  }
+
   function decide(env) {
+    if (st.outside) { st.act = { kind: 'follow', t: 0, re: 0 }; return; }
     st.look = null;
     const night = env.night;
     if (st.thirst > 0.6) return actBowl('water');
@@ -488,7 +508,8 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
     st.social = clamp(st.social + dt * 0.002, 0, 1);
 
     // activité courante
-    if (st.lapSpot && !st.lapGoing && !st.interact && st.act?.kind !== 'lap') {
+    if (!st.crossing && !st.interact && !st.jump && !!env.playerOutside !== !!st.outside) crossTo(!!env.playerOutside);
+    if (st.lapSpot && !st.lapGoing && !st.interact && !st.crossing && st.act?.kind !== 'lap') {
       st.lapT -= dt;
       const busy = st.act && (st.act.kind === 'eat' || st.act.kind === 'wait' || st.act.kind === 'greet');
       if (st.lapT < 0 && !busy && !st.jump) {
@@ -559,6 +580,36 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
         st.look = 'player';
         if (A.t > A.dur) { st.act = null; st.social = 0.1; }
         break;
+      case 'follow': {
+        // reste près de toi : te rejoint au trot si tu t'éloignes, flâne et renifle sinon
+        const p = env.player;
+        const dx = st.x - p.x, dz = st.z - p.z, d = Math.hypot(dx, dz) || 1;
+        A.re -= dt;
+        if (d > 2.2 && A.re < 0) {
+          A.re = 0.6;
+          const tgt = { x: p.x + (dx / d) * 1.1, z: p.z + (dz / d) * 1.1, y: 0 };
+          if (clampOut) clampOut(tgt);
+          st.path = [[tgt.x, tgt.z]];
+          st.speed = d > 5 ? 1.15 : 0.6;
+          st.moving = true;
+          st.onArrive = () => {};
+          A.sniff = 0;
+        }
+        if (!st.moving) {
+          A.idleT = (A.idleT || 0) + dt;
+          if (A.idleT > rand(4, 9) && chance(dt * 0.3)) {
+            // petit tour à côté
+            A.idleT = 0;
+            const a = rand(0, Math.PI * 2), tgt = { x: p.x + Math.cos(a) * rand(0.8, 1.6), z: p.z + Math.sin(a) * rand(0.8, 1.6), y: 0 };
+            if (clampOut) clampOut(tgt);
+            st.path = [[tgt.x, tgt.z]]; st.speed = 0.4; st.moving = true; st.onArrive = () => { A.sniff = rand(2, 4); };
+          }
+          if (A.sniff > 0) A.sniff -= dt;
+        }
+        target = st.moving ? 'stand' : A.sniff > 0 ? 'eat' : d < 1.4 ? 'sit' : 'stand';
+        if (!st.moving && A.sniff <= 0) st.look = 'player';
+        break;
+      }
       case 'lap':
         target = st.pet > 0.2 ? 'petLoaf' : A.t > 30 ? 'sleep' : 'loaf';
         break;
@@ -612,6 +663,10 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
       }
     }
 
+    // dehors, elle suit le relief
+    if (ground && !st.jump && (!st.spot || st.outside) && (st.outside || st.z > 6.1 || st.crossing)) {
+      if (!st.spot) st.y = ground(st.x, st.z);
+    }
     animate(dt, lookAt, env);
     model.root.position.set(st.x, st.y, st.z);
     model.root.rotation.y = st.yaw;

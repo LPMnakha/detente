@@ -9,6 +9,7 @@ import { createWeather, seasonOf } from './weather.js';
 import { createRomi } from './romi.js';
 import { createInteract } from './interact.js';
 import { createEvents } from './events.js';
+import { createDoor } from './door.js';
 
 const mobile = matchMedia('(pointer: coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const canvas = document.getElementById('c');
@@ -22,7 +23,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.05, 2600);
+const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.05, 9000);
 
 const sky = createSky(scene, renderer, { shadows: true, mobile });
 const cabin = buildCabin(scene, { shadows: true });
@@ -45,12 +46,18 @@ const lamps = cabin.lights.map((l) => {
 // fêtes de l'année (avant Romi : le sapin de Noël devient un obstacle)
 const events = createEvents(scene, { colliders: cabin.colliders });
 
+// porte d'entrée (s'ouvre au toucher)
+let audio = null;
+const door = createDoor(scene, cabin.colliders, { onSound: (k) => audio && audio.door(k) });
+
 const controls = createControls(camera, canvas, cabin.colliders);
+controls.setWorld({ ground: outside.groundAt, clamp: outside.clampOutside });
 
 // Romi, la chatte de la maison
-let audio = null;
 const romi = createRomi(scene, {
   colliders: cabin.colliders,
+  ground: outside.groundAt,
+  clampOut: outside.clampOutside,
   onMeow: (v, s) => {
     if (!audio) return;
     const p = controls.state.pos;
@@ -58,7 +65,7 @@ const romi = createRomi(scene, {
     audio.meow(v / (1 + d * d * 0.12));
   },
 });
-const interact = createInteract({ camera, canvas, scene, romi, controls, colliders: cabin.colliders, getAudio: () => audio });
+const interact = createInteract({ camera, canvas, scene, romi, controls, colliders: cabin.colliders, getAudio: () => audio, door, pontoon: outside.pontoon });
 const clock = makeClock();
 
 // météo en direct à Annecy (affichée discrètement sur l'écran d'accueil)
@@ -109,8 +116,17 @@ document.addEventListener('visibilitychange', () => {
 
 // ---------- sols (pour les bruits de pas)
 let lastStep = null, stepDist = 0;
+let snowCover = 0;
 function floorAt(x, z) {
   const inRect = (x0, z0, x1, z1) => x > x0 && x < x1 && z > z0 && z < z1;
+  if (z > 6.12) {
+    // dehors
+    const pt = outside.pontoon;
+    if (inRect(-1.25, 6.15, 1.75, 7.8) || inRect(pt.x - 0.8, pt.z0, pt.x + 0.8, pt.z0 + pt.len)) return 'ponton';
+    if (snowCover > 0.4) return 'neige';
+    if (Math.abs(x - outside.pathX(z)) < 0.45) return 'gravier';
+    return 'herbe';
+  }
   if (inRect(-1, -4.7, 2, -1.6) || inRect(0.6, 2.2, 3.6, 5.2) || inRect(4.7, 2.2, 7.6, 5.0) || inRect(-6.65, -5.35, -4.05, -4.8) || Math.hypot(x - 6.0, z + 3.15) < 1.45) return 'tapis';
   if (x < -3) return 'carrelage';
   return 'bois';
@@ -134,8 +150,13 @@ function frame(now) {
     cabin.glowMat.emissiveIntensity = 0.25 + 1.1 * (1 - d);
   }
 
-  outside.update(t, dt, wNow, sky.state);
+  outside.update(t, dt, wNow, sky.state, camera.position);
+  snowCover = Math.max(wNow.snow * 0.5, Math.min(1, (wNow.snowDepth || 0) / 0.06));
+  sky.tick(t);
   controls.update(dt);
+  const playerOutside = controls.state.pos.z > 6.15;
+  sky.state.focus.x = controls.state.pos.x;
+  sky.state.focus.z = controls.state.pos.z;
   // bruits de pas : un pas tous les ~65 cm, selon le sol
   {
     const p = controls.state.pos;
@@ -151,7 +172,8 @@ function frame(now) {
   {
     const p = controls.state.pos, rs = romi.state;
     const dRomi = Math.hypot(p.x - rs.x, p.z - rs.z);
-    romi.update(dt, { player: p, playerNear: dRomi < 4.5 && controls.state.enabled, night: sky.state.night > 0.6, cam: interact.mode === 'explore' ? null : camera.position });
+    romi.update(dt, { player: p, playerOutside, playerNear: dRomi < 4.5 && controls.state.enabled, night: sky.state.night > 0.6, cam: interact.mode === 'explore' ? null : camera.position });
+    door.update(dt, { player: p, romi: rs, keepOpen: rs.crossing || !!rs.outside !== playerOutside });
     interact.update(dt);
     if (audio) audio.setPurr(rs.purr / (1 + dRomi * dRomi * 0.3));
   }
@@ -163,6 +185,9 @@ function frame(now) {
     const sameRoom = p.x > -3 && (p.x < 4 || p.z < 0);
     audio.setDistance(dist, sameRoom);
     audio.setWeather(wNow.rain, wNow.wind);
+    audio.setOutside(playerOutside ? 1 : door.state.angle > 0.3 ? 0.35 : 0);
+    const dShore = playerOutside ? Math.max(0, outside.shoreWalk(p.x) + 0.5 - p.z) : 99;
+    audio.setShore(playerOutside ? 1 / (1 + dShore * dShore * 0.01) : 0);
   }
 
   renderer.render(scene, camera);
@@ -170,4 +195,4 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
-window.__detente = { events, controls, sky, scene, camera, renderer, weather, romi, interact, ready: true };
+window.__detente = { door, outside, events, controls, sky, scene, camera, renderer, weather, romi, interact, ready: true };

@@ -114,12 +114,9 @@ export function buildCabin(scene, { shadows = true } = {}) {
     B.box(a - f, y1 - 0.025, d0, b + f, y1 + f, d1, C.frame);
   }
   function frontDoor(o, z) {
-    const { a, b, y1 } = o;
-    B.box(a, 0, z - 0.04, b, y1, z + 0.04, C.wood, 'plain', { collide: true });
-    for (let k = 1; k < 4; k++) B.box(a + ((b - a) * k) / 4 - 0.01, 0.05, z - 0.05, a + ((b - a) * k) / 4 + 0.01, y1 - 0.05, z + 0.05, C.woodDark);
-    B.box(a + 0.05, 0.9, z - 0.06, b - 0.05, 0.98, z + 0.06, C.woodDark);
-    B.cyl(b - 0.12, 1.0, z - 0.09, 0.025, 0.025, 0.12, C.brass, 6);
-    B.box(a - 0.15, 0, z - T / 2 - 0.5, b + 0.15, 0.015, z - T / 2 - 0.05, C.sageDark); // paillasson
+    // le battant est animé à part (door.js) ; ici seulement le paillasson intérieur
+    const { a, b } = o;
+    B.box(a - 0.15, 0, z - T / 2 - 0.5, b + 0.15, 0.015, z - T / 2 - 0.05, C.sageDark);
   }
   // Mur le long de Z à la cote x : on tourne le repère
   function wallRunZ(x, z0, z1, ops = []) {

@@ -4,8 +4,8 @@ Refuge 3D pour hypersensibles : une cabane en rondins, cosy, où l'on se balade 
 
 - **Pièces** : salon avec cheminée, cuisine, chambre, salle de bain, coin lecture
 - **Feu de cheminée** animé, avec un crépitement synthétisé qui s'adoucit quand on s'éloigne
-- **Jour et nuit réels** : la position du soleil est calculée pour Paris, à l'heure actuelle
-- **Dehors** : prairie, lac et montagnes façon Annecy, ponton et barque, forêt qui change avec les **saisons**
+- **Jour et nuit réels** : la position du soleil est calculée pour Annecy, à l'heure actuelle
+- **Dehors, ambiance Norvège** : touche la porte pour sortir. La cabane (toit végétal, cheminée qui fume) est au bord d'un fjord, entre montagnes et forêt d'épicéas et de bouleaux. Un chemin descend jusqu'au ponton et son banc face à la petite ville colorée de l'autre rive, éclairée la nuit. Aurores boréales certaines nuits claires (`?aurore=1` pour tester). Romi te suit dehors et rentre avec toi.
 - **Météo en direct à Annecy** (Open-Meteo) : nuages, pluie, neige au sol, brouillard, vent dans les arbres, pluie sur le toit
 
 ## Romi

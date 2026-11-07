@@ -2,10 +2,11 @@
 import * as THREE from '../vendor/three.module.min.js';
 
 export const PARIS = { lat: 48.8566, lng: 2.3522 };
+export const ANNECY = { lat: 45.8992, lng: 6.1294 };
 
 // --- position du soleil (algorithme de SunCalc, V. Agafonkin) ---
 const rad = Math.PI / 180, e = rad * 23.4397;
-export function sunPosition(date, lat = PARIS.lat, lng = PARIS.lng) {
+export function sunPosition(date, lat = ANNECY.lat, lng = ANNECY.lng) {
   const d = date.valueOf() / 86400000 - 0.5 + 2440588 - 2451545;
   const M = rad * (357.5291 + 0.98560028 * d);
   const C = rad * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M));
@@ -48,7 +49,7 @@ const P = {
 };
 
 export function createSky(scene, renderer, { shadows = true, mobile = false } = {}) {
-  const R = 1200;
+  const R = 5200;
   const uniforms = {
     top: { value: new THREE.Color() }, hor: { value: new THREE.Color() },
     sunDir: { value: new THREE.Vector3(0, 1, 0) }, sunCol: { value: new THREE.Color(0xffd9a0) }, sunVis: { value: 1 },
@@ -82,7 +83,49 @@ export function createSky(scene, renderer, { shadows = true, mobile = false } = 
   const starMat = new THREE.PointsMaterial({ color: 0xfff6e8, size: mobile ? 1.6 : 1.4, sizeAttenuation: false, transparent: true, opacity: 0, depthWrite: false, fog: false });
   scene.add(new THREE.Points(starGeo, starMat));
 
-  scene.fog = new THREE.Fog(0xcfe2ee, 80, 900);
+  scene.fog = new THREE.Fog(0xcfe2ee, 160, 3800);
+
+  // aurores boréales : grands rideaux lents au-dessus du fjord, certaines nuits claires
+  const auroraU = { uTime: { value: 0 }, uAmt: { value: 0 } };
+  const auroraMat = new THREE.ShaderMaterial({
+    uniforms: auroraU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+    vertexShader: `uniform float uTime; varying vec2 vUv;
+      void main(){ vUv = uv; vec3 p = position;
+        p.z += sin(p.x * 0.0011 + uTime * 0.025) * 260.0 + sin(p.x * 0.0031 - uTime * 0.04) * 90.0;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0); }`,
+    fragmentShader: `uniform float uTime; uniform float uAmt; varying vec2 vUv;
+      void main(){ float x = vUv.x * 46.0;
+        float n = sin(x * 0.7 + uTime * 0.05) * 0.5 + sin(x * 1.9 - uTime * 0.08) * 0.3 + sin(x * 4.3 + uTime * 0.11) * 0.2;
+        float rays = 0.55 + 0.45 * sin(x * 13.0 + n * 3.0 + uTime * 0.15);
+        float v = vUv.y;
+        float base = smoothstep(0.0, 0.1, v) * pow(1.0 - v, 1.4);
+        float edge = smoothstep(0.0, 0.12, vUv.x) * smoothstep(1.0, 0.88, vUv.x);
+        vec3 col = mix(vec3(0.22, 1.0, 0.62), vec3(0.5, 0.35, 0.95), smoothstep(0.35, 1.0, v));
+        float a = base * rays * (0.55 + 0.45 * n) * edge * uAmt * 0.85;
+        gl_FragColor = vec4(col * a, a); }`,
+  });
+  const auroras = [];
+  for (const [z, y0, h, w, ph] of [[2600, 1100, 1500, 9000, 0], [3300, 1500, 1300, 8000, 2]]) {
+    const g = new THREE.PlaneGeometry(w, h, 160, 1);
+    g.translate(0, y0 + h / 2, 0);
+    const m = new THREE.Mesh(g, auroraMat);
+    m.position.z = z;
+    m.position.x = ph * 300;
+    m.frustumCulled = false;
+    m.renderOrder = -0.5;
+    m.visible = false;
+    scene.add(m);
+    auroras.push(m);
+  }
+  // une nuit sur deux environ (choisie selon la date), ou ?aurore=1
+  const forcedAurora = new URLSearchParams(location.search).get('aurore');
+  const auroraNight = (date) => {
+    if (forcedAurora) return forcedAurora !== '0';
+    const k = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(date.getTime() - 12 * 3600e3));
+    let hsh = 0;
+    for (const ch of k) hsh = (hsh * 31 + ch.charCodeAt(0)) >>> 0;
+    return (hsh % 100) < 50;
+  };
 
   // lumières globales
   const hemi = new THREE.HemisphereLight(0xbcd2e8, 0x6a5a48, 0.5);
@@ -101,7 +144,7 @@ export function createSky(scene, renderer, { shadows = true, mobile = false } = 
   scene.add(moon);
 
   const tmp = new THREE.Color(), tmp2 = new THREE.Color();
-  const state = { night: 0, day: 1, elev: 0, horizon: new THREE.Color() };
+  const state = { night: 0, day: 1, elev: 0, horizon: new THREE.Color(), focus: { x: 0, z: 0 }, aurora: 0 };
   const W0 = { cloud: 0.3, rain: 0, snow: 0, fog: 0, wind: 0.2 };
 
   function update(date, w = W0) {
@@ -129,13 +172,13 @@ export function createSky(scene, renderer, { shadows = true, mobile = false } = 
 
     // brouillard atmosphérique (léger par beau temps, dense par brouillard)
     scene.fog.color.copy(uniforms.hor.value);
-    scene.fog.near = lerp(lerp(90, 25, Math.max(w.rain, w.snow)), 12, w.fog);
-    scene.fog.far = lerp(lerp(950, 240, Math.max(w.rain, w.snow * 1.2)), 75, w.fog);
+    scene.fog.near = lerp(lerp(160, 30, Math.max(w.rain, w.snow)), 12, w.fog);
+    scene.fog.far = lerp(lerp(3800, 600, Math.max(w.rain, w.snow * 1.2)), 90, w.fog);
 
     // soleil direct (voilé par les nuages)
     const sunUp = smooth(-1.5, 4, elev);
-    sun.position.copy(dir).multiplyScalar(60);
-    sun.target.position.set(0, 0, 0);
+    sun.target.position.set(state.focus.x, 0, state.focus.z);
+    sun.position.copy(dir).multiplyScalar(60).add(sun.target.position);
     sun.intensity = 3.2 * sunUp * (1 - oc * 0.88);
     sun.color.copy(uniforms.sunCol.value).lerp(tmp2.set(0xff9a55), (1 - smooth(2, 18, elev)) * 0.7);
     sun.visible = sun.intensity > 0.01;
@@ -145,8 +188,21 @@ export function createSky(scene, renderer, { shadows = true, mobile = false } = 
     hemi.intensity = 0.06 + 0.55 * day + 0.15 * oc * day;
     hemi.color.set(0x3a4a78).lerp(tmp2.set(0xc9dcec), day).lerp(tmp2.set(0xf0b48a), twi * 0.4 * (1 - oc)).lerp(tmp2.set(0xb8c0c8), oc * day * 0.6);
     hemi.groundColor.set(0x1c1a20).lerp(tmp2.set(0x6a5a48), day);
+    // aurores
+    const want = night > 0.8 && w.cloud < 0.45 && w.fog < 0.3 && Math.max(w.rain, w.snow) < 0.1 && auroraNight(date) ? 1 : 0;
+    if (state.auroraWant === undefined) state.aurora = want; // déjà là si on arrive en pleine nuit d'aurore
+    state.auroraWant = want;
     return state;
   }
+  let lastT = 0;
+  function tick(t) {
+    const dt = Math.min(0.1, Math.max(0, t - lastT));
+    lastT = t;
+    auroraU.uTime.value = t;
+    state.aurora += ((state.auroraWant || 0) - state.aurora) * (1 - Math.exp(-dt / 6)); // apparaît en ~15 s
+    auroraU.uAmt.value = state.aurora;
+    for (const m of auroras) m.visible = state.aurora > 0.01;
+  }
 
-  return { update, state, sun };
+  return { update, tick, state, sun };
 }

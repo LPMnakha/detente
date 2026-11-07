@@ -2,7 +2,7 @@
 // gamelles à remplir. Tout se fait d'un simple toucher (ou clic).
 import * as THREE from '../vendor/three.module.min.js';
 
-export function createInteract({ camera, canvas, scene, romi, controls, colliders, getAudio }) {
+export function createInteract({ camera, canvas, scene, romi, controls, colliders, getAudio, door, pontoon }) {
   const $ = (id) => document.getElementById(id);
   const ui = { stand: $('btn-stand'), bar: $('actions'), pet: $('btn-pet'), play: $('btn-play'), back: $('btn-back'), tag: $('romi-tag'), hint: $('hint-pill'), cursor: $('pet-cursor') };
   const ray = new THREE.Raycaster();
@@ -26,6 +26,12 @@ export function createInteract({ camera, canvas, scene, romi, controls, collider
     { name: 'le banc', hit: [-1.75, 0.3, 5.7, 1.2, 0.55, 0.45, 0], cam: [-1.9, 1.02, 5.72], yaw: -0.6, pitch: -0.25, stand: [-1.75, 4.9],
       lap: { approach: [-1.3, 4.95], pos: [-1.32, 0.55, 5.66], yaw: Math.PI } },
   ];
+  // banc au bout du ponton, face à la ville
+  if (pontoon) {
+    const { x, y, benchZ } = pontoon;
+    SEATS.push({ name: 'le banc du ponton', hit: [x, y + 0.3, benchZ + 0.1, 1.3, 0.65, 0.5, 0], cam: [x, y + 1.0, benchZ + 0.02], yaw: Math.PI, pitch: -0.12, stand: [x, benchZ + 0.9],
+      lap: { approach: [x, benchZ + 1.05], pos: [x, y + 0.56, benchZ + 0.36], yaw: Math.PI / 2 } });
+  }
   const seatHits = [];
   const hitMat = new THREE.MeshBasicMaterial({ visible: false });
   SEATS.forEach((S, i) => {
@@ -215,7 +221,9 @@ export function createInteract({ camera, canvas, scene, romi, controls, collider
     ui.stand.classList.remove('on');
     ui.cursor.classList.remove('on');
     const cs = controls.state;
-    cs.pos.set(seat.stand[0], 1.6, seat.stand[1]);
+    const gy = controls.groundAt(seat.stand[0], seat.stand[1]);
+    cs.pos.set(seat.stand[0], 1.6 + gy, seat.stand[1]);
+    cs.groundY = gy;
     cs.yaw = seat.yaw + seatLook.yaw;
     cs.pitch = 0;
     saved.pos.copy(cs.pos);
@@ -225,9 +233,14 @@ export function createInteract({ camera, canvas, scene, romi, controls, collider
   }
   ui.stand.addEventListener('click', standUp);
 
+  let doorUsed = 0;
   function tap(x, y) {
     const h = hitRomi(x, y);
     if (h && h.distance < 4.5) { enter(); return; }
+    if (door) {
+      const dh = rayFrom(x, y).intersectObjects(door.pick, false)[0];
+      if (dh && dh.distance < 3.4) { door.open(); doorUsed++; return; }
+    }
     const sh = rayFrom(x, y).intersectObjects(seatHits, false)[0];
     if (sh && sh.distance < 3.6) {
       const b0 = rayFrom(x, y).intersectObjects(romi.bowls.pick, false)[0];
@@ -324,7 +337,9 @@ export function createInteract({ camera, canvas, scene, romi, controls, collider
       const dC = Math.hypot(p.x - c.x, p.z - c.z);
       const dB = Math.hypot(p.x - (-4.12), p.z - (-0.4));
       const st = romi.state;
-      if (dB < 2.4 && (st.food < 0.9 || st.water < 0.9)) setHint('Touche une gamelle pour la remplir');
+      const dDoor = door ? Math.hypot(p.x - door.center.x, p.z - door.center.z) : 99;
+      if (door && doorUsed < 1 && dDoor < 2.6 && !door.state.open) setHint(p.z < 6.1 ? 'Touche la porte pour sortir' : 'Touche la porte pour rentrer');
+      else if (dB < 2.4 && (st.food < 0.9 || st.water < 0.9)) setHint('Touche une gamelle pour la remplir');
       else if (dC < 3.2 && interactions < 2 && controls.state.enabled) setHint('Touche Romi pour la caresser');
       else if (seats < 1 && controls.state.enabled && SEATS.some((S) => Math.hypot(p.x - S.hit[0], p.z - S.hit[2]) < 2.0)) setHint('Touche un siège pour t\u2019asseoir');
       else setHint('');
