@@ -1,6 +1,7 @@
 // Romi : chatte blanche à taches tigrées grises, yeux vert-jaune.
 // Modèle low poly articulé + animations procédurales + petite vie autonome.
 import * as THREE from '../vendor/three.module.min.js';
+import { buildRomiModel } from './romi-model.js';
 
 const lerp = (a, b, t) => a + (b - a) * t;
 const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
@@ -39,164 +40,26 @@ const WAND_REST = { pos: [-0.25, -4.25], yaw: 0.6 };
 // y : hauteur du corps ; p/r : tangage/roulis ; hp/hy/hr : tête ; jambes [hanche, genou]
 // tl : levée de la queue ; tc : courbure ; ts : enroulement latéral ; tw : amplitude du balancement
 const POSE = {
-  stand: { y: 0.25, p: 0, r: 0, hp: 0.12, hy: 0, hr: 0, ear: 0, eye: 1, mouth: 0, lf: [0, 0], rf: [0, 0], lh: [0, 0], rh: [0, 0], tl: 0.55, tc: 0.12, ts: 0, tw: 0.12 },
-  greet: { y: 0.25, p: -0.05, r: 0, hp: -0.15, hy: 0, hr: 0.2, ear: 0, eye: 0.85, mouth: 0, lf: [0, 0], rf: [0, 0], lh: [0, 0], rh: [0, 0], tl: 1.35, tc: -0.12, ts: 0, tw: 0.05 },
-  sit: { y: 0.157, p: -0.75, r: 0, hp: 0.82, hy: 0, hr: 0, ear: 0, eye: 1, mouth: 0, lf: [0.75, 0], rf: [0.75, 0], lh: [-0.65, 2.6], rh: [-0.65, 2.6], tl: 0.15, tc: -0.08, ts: 0.32, tw: 0.04 },
-  loaf: { y: 0.12, p: 0, r: 0, hp: 0.05, hy: 0, hr: 0, ear: 0, eye: 1, mouth: 0, lf: [1.45, -2.8], rf: [1.45, -2.8], lh: [-1.45, 2.8], rh: [-1.45, 2.8], tl: -0.28, tc: 0, ts: 0.3, tw: 0.03 },
-  sleep: { y: 0.11, p: 0, r: 1.3, hp: 0.5, hy: 0.55, hr: -0.25, ear: 0.25, eye: 0, mouth: 0, lf: [-0.5, 0.7], rf: [-0.25, 0.5], lh: [0.35, -0.4], rh: [0.55, -0.2], tl: 0.0, tc: 0.0, ts: 0.48, tw: 0.0 },
-  side: { y: 0.115, p: 0, r: 1.35, hp: -0.1, hy: 0.25, hr: -1.05, ear: 0, eye: 1, mouth: 0, lf: [-1.0, -0.4], rf: [-0.7, -0.6], lh: [0.25, 0.3], rh: [0.45, 0.2], tl: 0.1, tc: 0.05, ts: 0.1, tw: 0.25 },
-  crouch: { y: 0.16, p: 0.08, r: 0, hp: -0.12, hy: 0, hr: 0, ear: -0.2, eye: 1, mouth: 0, lf: [0.75, -1.35], rf: [0.75, -1.35], lh: [-0.95, 1.75], rh: [-0.95, 1.75], tl: -0.05, tc: 0.04, ts: 0, tw: 0.02 },
-  eat: { y: 0.21, p: 0.22, r: 0, hp: 0.95, hy: 0, hr: 0, ear: 0, eye: 0.7, mouth: 0, lf: [-0.22, 0.3], rf: [-0.22, 0.3], lh: [-0.42, 0.5], rh: [-0.42, 0.5], tl: 0.35, tc: 0.08, ts: 0, tw: 0.05 },
-  stretch: { y: 0.2, p: 0.48, r: 0, hp: -0.45, hy: 0, hr: 0, ear: 0.1, eye: 0.15, mouth: 0.75, lf: [-1.25, 0], rf: [-1.25, 0], lh: [-0.5, 0], rh: [-0.5, 0], tl: 0.55, tc: 0.1, ts: 0, tw: 0.02 },
-  leap: { y: 0.25, p: -0.25, r: 0, hp: 0.3, hy: 0, hr: 0, ear: 0.1, eye: 1, mouth: 0, lf: [-1.0, 0.2], rf: [-1.0, 0.2], lh: [0.9, 0.3], rh: [0.9, 0.3], tl: 0.3, tc: 0, ts: 0, tw: 0 },
+  stand:   { y: 0.218, p: 0, r: 0, sp: 0, sy: 0, hp: 0.1, hy: 0, hr: 0, ear: 0, eye: 1, mouth: 0, lf: [0, 0], rf: [0, 0], lh: [0, 0], rh: [0, 0], tl: 0.45, tc: 0.08, ts: 0, tw: 0.1 },
+  greet:   { y: 0.218, p: -0.04, r: 0, sp: -0.04, sy: 0, hp: -0.2, hy: 0, hr: 0.22, ear: 0, eye: 0.8, mouth: 0, lf: [0.05, 0], rf: [0.05, 0], lh: [0, 0], rh: [0, 0], tl: 1.45, tc: -0.02, ts: 0, tw: 0.04 },
+  sit:     { y: 0.125, p: -0.5, r: 0, sp: -0.15, sy: 0, hp: 0.7, hy: 0, hr: 0, ear: 0, eye: 1, mouth: 0, lf: [0.65, 0], rf: [0.65, 0], lh: [-0.85, 2.65], rh: [-0.85, 2.65], tl: 0.45, tc: 0.02, ts: 0.28, tw: 0.03 },
+  loaf:    { y: 0.09, p: 0, r: 0, sp: 0.02, sy: 0, hp: 0.0, hy: 0, hr: 0, ear: 0, eye: 1, mouth: 0, lf: [1.45, -2.85], rf: [1.45, -2.85], lh: [-1.4, 2.75], rh: [-1.4, 2.75], tl: -0.15, tc: 0.0, ts: 0.26, tw: 0.02 },
+  sleep:   { y: 0.085, p: 0, r: 0.35, sp: 0.05, sy: 0.9, hp: 0.75, hy: 0.9, hr: -0.5, ear: 0.25, eye: 0, mouth: 0, lf: [1.45, -2.85], rf: [1.45, -2.85], lh: [-1.4, 2.75], rh: [-1.4, 2.75], tl: -0.15, tc: 0.0, ts: 0.34, tw: 0 },
+  side:    { y: 0.1, p: 0, r: 1.38, sp: 0, sy: 0.25, hp: -0.05, hy: 0.25, hr: -1.0, ear: 0, eye: 1, mouth: 0, lf: [-0.8, -1.4], rf: [-0.45, -1.6], lh: [-0.7, 1.4], rh: [-0.3, 1.2], tl: 0.1, tc: 0.04, ts: 0.08, tw: 0.25 },
+  crouch:  { y: 0.13, p: 0.05, r: 0, sp: 0.08, sy: 0, hp: -0.12, hy: 0, hr: 0, ear: -0.2, eye: 1, mouth: 0, lf: [0.6, -1.3], rf: [0.6, -1.3], lh: [-0.95, 1.8], rh: [-0.95, 1.8], tl: -0.1, tc: 0.03, ts: 0, tw: 0.02 },
+  eat:     { y: 0.18, p: 0.14, r: 0, sp: 0.16, sy: 0, hp: 0.85, hy: 0, hr: 0, ear: 0, eye: 0.7, mouth: 0, lf: [-0.3, 0.25], rf: [-0.3, 0.25], lh: [-0.18, 0.12], rh: [-0.18, 0.12], tl: 0.3, tc: 0.06, ts: 0, tw: 0.04 },
+  stretch: { y: 0.19, p: 0.12, r: 0, sp: 0.36, sy: 0, hp: -0.6, hy: 0, hr: 0, ear: 0.12, eye: 0.2, mouth: 0.8, lf: [-1.5, 0.1], rf: [-1.5, 0.1], lh: [-0.12, 0], rh: [-0.12, 0], tl: 0.45, tc: 0.12, ts: 0, tw: 0.02 },
+  leap:    { y: 0.21, p: -0.2, r: 0, sp: -0.1, sy: 0, hp: 0.3, hy: 0, hr: 0, ear: 0.1, eye: 1, mouth: 0, lf: [-1.1, 0.2], rf: [-1.1, 0.2], lh: [1.0, 0.3], rh: [1.0, 0.3], tl: 0.3, tc: 0, ts: 0, tw: 0 },
 };
-POSE.groom = { ...POSE.sit, rf: [-1.75, 2.35], hp: 1.05, hr: 0.3, hy: -0.25, eye: 0.35 };
-POSE.petSit = { ...POSE.sit, hp: 0.5, hr: 0.28, eye: 0.22, ear: 0.18, tl: 0.35, tw: 0.03 };
-POSE.petLoaf = { ...POSE.loaf, hp: -0.15, hr: 0.3, eye: 0.2, ear: 0.18 };
-POSE.petSleep = { ...POSE.sleep, eye: 0.15, hp: 0.25 };
-const PKEYS = ['y', 'p', 'r', 'hp', 'hy', 'hr', 'ear', 'eye', 'mouth', 'tl', 'tc', 'ts', 'tw'];
+POSE.groom = { ...POSE.sit, rf: [-0.75, -1.6], hp: 0.95, hr: 0.3, hy: -0.3, eye: 0.35 };
+POSE.petSit = { ...POSE.sit, hp: 0.35, hr: 0.3, eye: 0.25, ear: 0.15, tl: 0.75, tc: 0.0, ts: 0.12, tw: 0.03 };
+POSE.petLoaf = { ...POSE.loaf, hp: -0.18, hr: 0.32, eye: 0.2, ear: 0.15 };
+POSE.petSleep = { ...POSE.sleep, eye: 0.12, hp: 0.2 };
+POSE.prep = { ...POSE.crouch, y: 0.145, lf: [0.5, -1.0], rf: [0.5, -1.0], ear: 0 };
+const PKEYS = ['y', 'p', 'r', 'sp', 'sy', 'hp', 'hy', 'hr', 'ear', 'eye', 'mouth', 'tl', 'tc', 'ts', 'tw'];
 const LEGS = ['lf', 'rf', 'lh', 'rh'];
 
 // ---------------------------------------------------------------- modèle
-function buildModel() {
-  const M = (c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.95, flatShading: true });
-  const mat = {
-    white: M(0xf3efe7), grey: M(0x706c69), dark: M(0x4b4744), pink: M(0xe8a3a0),
-    eye: new THREE.MeshStandardMaterial({ color: 0xb6c46a, roughness: 0.3, emissive: 0x2a3010, flatShading: true }),
-    pupil: new THREE.MeshBasicMaterial({ color: 0x14110f }), mouth: M(0x5a2f2d),
-  };
-  const meshes = [];
-  const blob = (parent, m, sx, sy, sz, x, y, z, detail = 2, part = 'corps') => {
-    const g = new THREE.IcosahedronGeometry(1, detail);
-    g.scale(sx, sy, sz);
-    const mesh = new THREE.Mesh(g, m);
-    mesh.position.set(x, y, z);
-    mesh.castShadow = true;
-    mesh.userData.part = part;
-    parent.add(mesh);
-    meshes.push(mesh);
-    return mesh;
-  };
-  const root = new THREE.Group();
-  const body = new THREE.Group();
-  root.add(body);
-  // corps
-  const torso = blob(body, mat.white, 0.105, 0.1, 0.21, 0, 0, 0);
-  blob(body, mat.white, 0.092, 0.098, 0.1, 0, -0.005, 0.12);
-  blob(body, mat.white, 0.1, 0.098, 0.1, 0, 0.0, -0.12);
-  // taches tigrées sur le dos (comme Romi)
-  blob(body, mat.grey, 0.07, 0.05, 0.1, 0.045, 0.06, 0.03).rotation.z = -0.35;
-  blob(body, mat.dark, 0.03, 0.02, 0.07, 0.06, 0.085, 0.04, 1).rotation.z = -0.4;
-  blob(body, mat.grey, 0.065, 0.048, 0.085, -0.055, 0.055, -0.08).rotation.z = 0.4;
-  blob(body, mat.grey, 0.06, 0.05, 0.055, 0, 0.065, -0.18);
-  // tête
-  const neck = new THREE.Group();
-  neck.position.set(0, 0.065, 0.19);
-  body.add(neck);
-  const head = new THREE.Group();
-  neck.add(head);
-  blob(head, mat.white, 0.072, 0.066, 0.068, 0, 0.03, 0.03, 2, 'tete');
-  // calotte tigrée grise avec liseré blanc au milieu
-  blob(head, mat.grey, 0.042, 0.042, 0.05, 0.033, 0.058, 0.03, 2, 'tete');
-  blob(head, mat.grey, 0.042, 0.042, 0.05, -0.033, 0.058, 0.03, 2, 'tete');
-  blob(head, mat.grey, 0.06, 0.045, 0.04, 0, 0.055, -0.005, 2, 'tete');
-  blob(head, mat.dark, 0.012, 0.018, 0.02, 0.025, 0.08, 0.05, 1, 'tete');
-  blob(head, mat.dark, 0.012, 0.018, 0.02, -0.025, 0.08, 0.05, 1, 'tete');
-  blob(head, mat.white, 0.018, 0.04, 0.03, 0, 0.055, 0.075, 1, 'tete'); // liseré
-  const muzzle = blob(head, mat.white, 0.042, 0.03, 0.035, 0, 0.008, 0.08, 2, 'menton');
-  blob(head, mat.pink, 0.012, 0.008, 0.008, 0, 0.026, 0.112, 1, 'tete');
-  const mouth = blob(head, mat.mouth, 0.016, 0.012, 0.008, 0, -0.008, 0.108, 1, 'menton');
-  mouth.scale.y = 0.01;
-  // yeux
-  const eyes = [];
-  for (const s of [-1, 1]) {
-    const eg = new THREE.Group();
-    eg.position.set(s * 0.028, 0.042, 0.085);
-    head.add(eg);
-    const e = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1).scale(0.015, 0.014, 0.008), mat.eye);
-    eg.add(e);
-    const p = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 0).scale(0.0035, 0.011, 0.004), mat.pupil);
-    p.position.z = 0.006;
-    eg.add(p);
-    eyes.push(eg);
-  }
-  // oreilles
-  const ears = [];
-  for (const s of [-1, 1]) {
-    const eg = new THREE.Group();
-    eg.position.set(s * 0.04, 0.078, 0.01);
-    eg.rotation.z = -s * 0.32;
-    head.add(eg);
-    const outer = new THREE.Mesh(new THREE.ConeGeometry(0.026, 0.055, 4).translate(0, 0.027, 0), mat.grey);
-    outer.rotation.y = Math.PI / 4;
-    outer.castShadow = true;
-    outer.userData.part = 'tete';
-    eg.add(outer);
-    meshes.push(outer);
-    const inner = new THREE.Mesh(new THREE.ConeGeometry(0.016, 0.04, 3).translate(0, 0.02, 0), mat.pink);
-    inner.position.set(0, 0.002, 0.008);
-    eg.add(inner);
-    ears.push(eg);
-  }
-  // moustaches
-  const wg = new THREE.BufferGeometry();
-  const wp = [];
-  for (const s of [-1, 1]) for (let k = 0; k < 3; k++) wp.push(s * 0.03, 0.012, 0.1, s * 0.11, 0.02 - k * 0.012, 0.085 - k * 0.006);
-  wg.setAttribute('position', new THREE.Float32BufferAttribute(wp, 3));
-  head.add(new THREE.LineSegments(wg, new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 })));
-  // pattes
-  const legs = {};
-  const legDef = { lf: [0.05, -0.04, 0.13, mat.white], rf: [-0.05, -0.04, 0.13, mat.white], lh: [0.055, -0.035, -0.13, mat.white], rh: [-0.055, -0.035, -0.13, mat.white] };
-  for (const [k, [x, y, z, m]] of Object.entries(legDef)) {
-    const hip = new THREE.Group();
-    hip.position.set(x, y, z);
-    body.add(hip);
-    const up = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.022, 0.1, 6).translate(0, -0.05, 0), k.endsWith('h') ? mat.white : m);
-    up.castShadow = true;
-    up.userData.part = 'corps';
-    hip.add(up);
-    meshes.push(up);
-    if (k === 'lh') { const t = blob(hip, mat.grey, 0.03, 0.04, 0.035, 0, -0.025, 0, 1); t.userData.part = 'corps'; }
-    const knee = new THREE.Group();
-    knee.position.y = -0.1;
-    hip.add(knee);
-    const low = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.018, 0.1, 6).translate(0, -0.05, 0), mat.white);
-    low.castShadow = true;
-    knee.add(low);
-    const paw = blob(knee, mat.white, 0.024, 0.015, 0.032, 0, -0.1, 0.01, 1, 'patte');
-    if (k === 'lf') blob(knee, mat.dark, 0.012, 0.008, 0.014, 0.005, -0.1, 0.032, 0, 'patte'); // petite tache
-    legs[k] = { hip, knee, paw };
-  }
-  // queue tigrée
-  const tail = [];
-  let parent = body;
-  const seg = 0.052;
-  const tg = new THREE.Group();
-  tg.position.set(0, 0.04, -0.2);
-  body.add(tg);
-  parent = tg;
-  for (let i = 0; i < 7; i++) {
-    const s = new THREE.Group();
-    if (i > 0) s.position.z = -seg;
-    parent.add(s);
-    const r0 = 0.02 - i * 0.0015;
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(r0 * 0.9, r0, seg + 0.006, 6).rotateX(Math.PI / 2).translate(0, 0, -seg / 2), i % 2 ? mat.dark : mat.grey);
-    m.castShadow = true;
-    m.userData.part = 'queue';
-    s.add(m);
-    meshes.push(m);
-    tail.push(s);
-    parent = s;
-  }
-  // ombre douce au sol
-  const shadow = new THREE.Mesh(new THREE.CircleGeometry(0.24, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.18, depthWrite: false }));
-  shadow.position.y = 0.006;
-  shadow.scale.z = 1.5;
-  root.add(shadow);
-  root.scale.setScalar(0.88);
-  return { root, body, torso, neck, head, eyes, ears, mouth, legs, tail, shadow, meshes, muzzle };
-}
-
 // ---------------------------------------------------------------- gamelles + canne
 function buildBowls(scene) {
   const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.6, flatShading: true, ...o });
@@ -265,7 +128,7 @@ export function buildWand() {
 
 // ---------------------------------------------------------------- Romi
 export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
-  const model = buildModel();
+  const model = buildRomiModel();
   scene.add(model.root);
   const bowls = buildBowls(scene);
   const { stickMat, ribbonMat } = buildWand();
@@ -420,7 +283,8 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
     const from = [st.x, st.y, st.z];
     const d = Math.hypot(p[0] - from[0], p[2] - from[2]);
     st.yaw = d > 0.02 ? Math.atan2(p[0] - from[0], p[2] - from[2]) : st.yaw;
-    st.jump = { from, to: p, t: 0, dur: 0.38 + Math.abs(p[1] - from[1]) * 0.25 + d * 0.15, arc: 0.12 + Math.max(0, p[1] - from[1]) * 0.35, after: () => (points.length ? startJumps(points, done) : done && done()) };
+    const up = p[1] - from[1];
+    st.jump = { from, to: p, t: 0, pre: up > 0.2 ? 0.28 : 0.14, dur: 0.36 + Math.abs(up) * 0.25 + d * 0.15, arc: 0.1 + Math.max(0, up) * 0.35, after: () => { st.landT = 0.22; points.length ? startJumps(points, done) : done && done(); } };
   }
   function goToSpot(spot, then) {
     leaveSpot(() => {
@@ -570,6 +434,7 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
       st.target = pose || 'loaf';
       Object.assign(st.pose, JSON.parse(JSON.stringify(POSE[st.target])));
     },
+    snapPose(name) { if (POSE[name]) { Object.assign(st.pose, JSON.parse(JSON.stringify(POSE[name]))); st.target = name; } },
     get mood() { return moodText(); },
   };
 
@@ -670,7 +535,8 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
       case 'play': playUpdate(dt, A, env); target = A.pose || 'crouch'; lookAt = st.toy ? tmpV.set(st.toy.x, st.toy.y, st.toy.z) : null; break;
       default: target = 'stand';
     }
-    if (st.moving || st.jump) target = st.jump ? 'leap' : 'stand';
+    if (st.moving || st.jump) target = st.jump ? (st.jump.pre > 0 ? 'prep' : 'leap') : 'stand';
+    if (st.landT > 0) { st.landT -= dt; if (!st.jump && st.landT > 0.08) target = 'prep'; }
     st.target = target;
 
     // caresses -> ronronnement
@@ -680,7 +546,9 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
     st.purr = lerp(st.purr, purrTarget, 1 - Math.exp(-dt * 2));
 
     // déplacement le long du chemin
-    if (st.jump) {
+    if (st.jump && st.jump.pre > 0) {
+      st.jump.pre -= dt; // élan : elle se ramasse avant de sauter
+    } else if (st.jump) {
       const J = st.jump;
       J.t += dt / J.dur;
       const k = Math.min(1, J.t), e = k * k * (3 - 2 * k);
@@ -693,12 +561,14 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
       const dx = tx - st.x, dz = tz - st.z, d = Math.hypot(dx, dz);
       const want = Math.atan2(dx, dz);
       const turn = wrap(want - st.yaw);
-      st.yaw += clamp(turn, -dt * 4.5, dt * 4.5);
+      const dyaw = clamp(turn, -dt * 4.5, dt * 4.5);
+      st.yaw += dyaw;
+      st.turn = lerp(st.turn || 0, dyaw / Math.max(dt, 1e-3), 1 - Math.exp(-dt * 6));
       const sp = st.speed * (Math.abs(turn) > 1.2 ? 0.25 : 1);
       const step = Math.min(d, sp * dt);
       st.x += Math.sin(st.yaw) * step;
       st.z += Math.cos(st.yaw) * step;
-      st.gait += step * (st.speed > 0.8 ? 5.2 : 6.8);
+      st.gait += step / (st.speed > 0.8 ? 0.4 : 0.3);
       if (d < 0.05) {
         st.path.shift();
         if (!st.path.length) { st.moving = false; const cb = st.onArrive; st.onArrive = null; cb && cb(); }
@@ -732,7 +602,7 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
         const sp = d > 2 ? 1.1 : 0.7;
         if (d > 0.5) {
           const nx = st.x + Math.sin(st.yaw) * sp * dt, nz = st.z + Math.cos(st.yaw) * sp * dt;
-          if (segClear(st.x, st.z, nx, nz, 0.1)) { st.x = nx; st.z = nz; st.gait += sp * dt * 5.5; st.moving = false; st.chasing = true; }
+          if (segClear(st.x, st.z, nx, nz, 0.1)) { st.x = nx; st.z = nz; st.gait += sp * dt / 0.38; st.moving = false; st.chasing = true; }
           else { A.sub = 'watch'; }
         } else { A.sub = 'crouch'; A.subT = 0; A.wait = rand(0.5, 1.4); }
         break;
@@ -764,89 +634,132 @@ export function createRomi(scene, { colliders, onMeow: meowCb } = {}) {
 
   // ---------- animation procédurale
   const P = st.pose;
+  for (const key of PKEYS) if (P[key] === undefined) P[key] = 0;
+  let walkBlend = 0, kneadT = 0, flick = 0, flickT = 2;
   function animate(dt, lookAt, env) {
     const tgt = POSE[st.target] || POSE.stand;
-    const k = 1 - Math.exp(-dt * (st.jump ? 14 : 5));
+    const fast = st.jump || st.target === 'prep';
+    const k = 1 - Math.exp(-dt * (fast ? 14 : 4.5));
     for (const key of PKEYS) P[key] = lerp(P[key], tgt[key], k);
     for (const L of LEGS) for (let i = 0; i < 2; i++) P[L][i] = lerp(P[L][i], tgt[L][i], k);
 
     const walking = (st.moving || st.chasing) && !st.jump;
     st.chasing = false;
-    const m = model;
-    // corps
-    const breath = Math.sin(time * (st.target === 'sleep' ? 1.6 : 2.6)) * (st.target === 'sleep' ? 0.022 : 0.012);
-    let by = P.y, roll = P.r, bodyX = 0;
-    if (walking) by += Math.abs(Math.sin(st.gait * Math.PI)) * 0.006;
-    if (st.target === 'crouch') bodyX = Math.sin(time * 9) * 0.008; // frétillement du derrière
-    m.body.position.set(bodyX, by, 0);
-    m.body.rotation.set(P.p, 0, roll);
-    m.torso.scale.set(1 + breath * 0.6, 1 + breath, 1);
-    // ombre
-    m.shadow.material.opacity = 0.18 * (st.y > 0.4 ? 0.6 : 1);
+    walkBlend = lerp(walkBlend, walking ? 1 : 0, 1 - Math.exp(-dt * 8));
+    const m = model, g = st.gait, W = walkBlend;
+    const trot = st.speed > 0.8;
+    const sleeping = st.target === 'sleep' || st.target === 'petSleep';
+    const playing = st.act?.kind === 'play' || st.act?.kind === 'playAlone';
 
-    // pattes + démarche
+    // --- corps : petit rebond et roulis de marche, frétillement avant le bond
+    const bob = Math.cos(g * Math.PI * 4) * 0.004 * W;
+    const roll = Math.sin(g * Math.PI * 2) * 0.03 * W;
+    const wiggle = st.target === 'crouch' && playing ? Math.sin(time * 10) * 0.008 : 0;
+    m.body.position.set(wiggle, P.y + bob, 0);
+    m.body.rotation.set(P.p, Math.sin(g * Math.PI * 2) * 0.03 * W, P.r + roll);
+    // --- dos : se plie dans les virages, en boule, à l'étirement
+    const turnBend = clamp((st.turn || 0) * 0.12, -0.35, 0.35) * W;
+    m.chest.rotation.set(P.sp, P.sy + turnBend - Math.sin(g * Math.PI * 2) * 0.05 * W, 0);
+    // --- respiration
+    const br = Math.sin(time * (sleeping ? 1.5 : 2.4)), amp = sleeping ? 0.03 : 0.014;
+    m.torso.scale.set(1 + br * amp * 0.4, 1 + br * amp, 1);
+    m.shadow.material.opacity = 0.2 * (st.y > 0.4 ? 0.6 : 1);
+
+    // --- pattes
     const offs = { lh: 0, lf: 0.25, rh: 0.5, rf: 0.75 };
-    const swipe = st.act?.kind === 'play' && (st.act.sub === 'bat') ? Math.sin(time * 11) : 0;
-    const sideBat = (st.target === 'side' && (st.act?.kind === 'play' || st.act?.kind === 'playAlone')) ? Math.sin(time * 7) : 0;
+    const A = trot ? 0.55 : 0.42, stance = trot ? 0.5 : 0.62;
+    const swipe = st.act?.kind === 'play' && st.act.sub === 'bat';
+    const sideBat = st.target === 'side' && playing;
+    const kneading = st.pet > 0.25 && (st.target === 'petSit' || st.target === 'petLoaf');
+    const gp = (time % 6) / 6; // toilette : lèche la patte, puis se frotte la tête
+    const wipe = st.target === 'groom' && gp > 0.6;
+    kneadT += dt * 3.4;
     for (const L of LEGS) {
       let hip = P[L][0], knee = P[L][1];
-      if (walking) {
-        const ph = (st.gait + offs[L]) * Math.PI * 2;
-        const A = st.speed > 0.8 ? 0.7 : 0.5;
-        hip += Math.sin(ph) * A;
-        knee += (L.endsWith('f') ? 1 : -1) * Math.max(0, Math.cos(ph)) * 0.55;
+      if (W > 0.01) {
+        const c = (((g + offs[L]) % 1) + 1) % 1;
+        let sw, lift;
+        if (c < stance) { sw = lerp(-A, A, c / stance); lift = 0; }
+        else { const u = (c - stance) / (1 - stance); sw = lerp(A, -A, u * u * (3 - 2 * u)); lift = Math.sin(Math.PI * u); }
+        hip += sw * W;
+        knee += (L.endsWith('f') ? 1.05 : 0.85) * lift * W;
       }
-      if (L === 'rf' && swipe) { hip = -1.1 + swipe * 0.55; knee = -0.3; }
-      if (L === 'lf' && sideBat) { hip += sideBat * 0.5; knee += sideBat * 0.4; }
-      if (L === 'rf' && sideBat) { hip -= sideBat * 0.4; }
-      if (L === 'rf' && st.target === 'groom') { hip += Math.sin(time * 4) * 0.12; }
+      if (L === 'rf' && swipe) { hip = -1.2 + Math.sin(time * 11) * 0.55; knee = -0.4 + Math.sin(time * 11 + 1) * 0.3; }
+      if (sideBat) {
+        const s = Math.sin(time * 7);
+        if (L === 'lf') { hip += s * 0.5; knee += s * 0.4; }
+        if (L === 'rf') { hip -= s * 0.45; knee += Math.cos(time * 7) * 0.3; }
+        if (L === 'lh' || L === 'rh') hip += Math.sin(time * 3.5 + (L === 'lh' ? 0 : 1.5)) * 0.15;
+      }
+      if (L === 'rf' && st.target === 'groom') {
+        if (wipe) { hip = -0.85 + Math.sin(time * 5) * 0.2; knee = -2.2; }
+        else hip += Math.sin(time * 4) * 0.08;
+      }
+      if (kneading && (L === 'lf' || L === 'rf')) {
+        const ph = L === 'lf' ? 0 : Math.PI;
+        const kk = Math.max(0, Math.sin(kneadT + ph));
+        hip -= kk * 0.25; knee += kk * 0.4;
+      }
       m.legs[L].hip.rotation.x = hip;
       m.legs[L].knee.rotation.x = knee;
     }
 
-    // tête : regard
-    let hy = P.hy, hp = P.hp, hr = P.hr;
+    // --- tête et cou : le regard suit (toi, le ruban...), réparti entre cou et tête
+    let yawRel = P.hy, hp = P.hp, hr = P.hr;
     let look = lookAt;
     if (!look && st.look === 'player' && env.player) look = tmpV.set(env.player.x, env.player.y - 0.3, env.player.z);
     if (st.interact && !lookAt && env.cam) look = tmpV.copy(env.cam);
-    if (look && st.target !== 'sleep' && st.target !== 'petSleep' && st.target !== 'eat') {
+    if (look && !sleeping && st.target !== 'eat' && st.target !== 'groom') {
       const dx = look.x - st.x, dz = look.z - st.z;
-      const yawRel = wrap(Math.atan2(dx, dz) - st.yaw);
-      hy = clamp(yawRel, -1.1, 1.1) * (st.target === 'side' ? 0.4 : 1);
-      const hd = Math.hypot(dx, dz);
-      const dh = look.y - (st.y + 0.3);
-      hp = P.hp - clamp(Math.atan2(dh, hd), -0.6, 0.8) * 0.8;
+      yawRel = clamp(wrap(Math.atan2(dx, dz) - st.yaw - P.sy), -1.3, 1.3) * (st.target === 'side' ? 0.4 : 1);
+      const hd = Math.hypot(dx, dz), dh = look.y - (st.y + 0.3);
+      const worldPitch = -clamp(Math.atan2(dh, hd), -0.6, 0.9) * 0.85 + 0.05;
+      hp = P.r > 0.8 ? P.hp : worldPitch - (P.p + P.sp);
     }
-    if (st.target === 'groom') { hp += Math.sin(time * 5) * 0.08; }
-    if (st.target === 'eat') { hp += Math.sin(time * 6) * 0.05; }
-    m.neck.rotation.set(0, 0, 0);
-    m.head.rotation.set(hp, hy, hr, 'YXZ');
+    if (st.target === 'groom') {
+      if (wipe) { hr = 0.65; hp += 0.15; yawRel -= 0.2; }
+      else hp += Math.sin(time * 5) * 0.09;
+    }
+    if (st.target === 'eat') hp += Math.sin(time * 6) * 0.05;
+    hp -= bob * 6; // la tête reste stable pendant la marche
+    m.neck.rotation.set(0, yawRel * 0.4, 0);
+    m.head.rotation.set(hp, yawRel * 0.6, hr, 'YXZ');
 
-    // clignements, oreilles, bouche
+    // --- yeux (clignements, clignement lent quand on la caresse), oreilles, bouche
     st.blinkT -= dt;
-    if (st.blinkT < 0) { st.blink = 1; st.blinkT = rand(2.5, 6); }
-    st.blink = Math.max(0, st.blink - dt * 7);
+    if (st.blinkT < 0) { st.blink = 1; st.blinkT = st.pet > 0.3 ? rand(1.5, 3) : rand(2.5, 6); }
+    st.blink = Math.max(0, st.blink - dt * (st.pet > 0.3 ? 2.5 : 7));
     const eyeOpen = Math.max(0.06, P.eye * (1 - Math.sin(Math.min(1, st.blink) * Math.PI) * 0.95));
     for (const e of m.eyes) e.scale.y = eyeOpen;
     st.earT -= dt;
-    if (st.earT < 0) { st.ear = 1; st.earT = rand(3, 9); }
+    if (st.earT < 0) { st.ear = 1; st.earT = rand(3, 9); st.earSide = chance(0.5) ? 0 : 1; }
     st.ear = Math.max(0, st.ear - dt * 4);
     m.ears.forEach((e, i) => {
       const s = i ? 1 : -1;
-      e.rotation.x = -P.ear * 0.9 + (i === 0 ? Math.sin(st.ear * Math.PI) * 0.4 : 0);
-      e.rotation.z = -s * (0.32 + P.ear * 0.5);
+      const tw = i === st.earSide ? Math.sin(st.ear * Math.PI) * 0.45 : 0;
+      e.rotation.set(-P.ear * 0.9 - tw * 0.5, s * (0.15 + tw), -s * (0.28 + P.ear * 0.55));
     });
-    const mouth = P.mouth + (st.target === 'groom' ? (Math.sin(time * 9) * 0.5 + 0.5) * 0.4 : 0) + (st.meowing > 0 ? 0.8 : 0);
+    let mouth = P.mouth;
+    if (st.target === 'groom' && !wipe) mouth += (Math.sin(time * 9) * 0.5 + 0.5) * 0.45;
+    if (st.target === 'eat') mouth += (Math.sin(time * 6) * 0.5 + 0.5) * 0.3;
+    if (st.meowing > 0) mouth += Math.sin(Math.min(1, st.meowing / 0.55) * Math.PI) * 1.1;
     st.meowing = Math.max(0, (st.meowing || 0) - dt);
     m.mouth.scale.y = Math.max(0.01, mouth);
+    m.mouth.visible = mouth > 0.06;
 
-    // queue
-    const wagAmp = P.tw + (st.target === 'crouch' ? 0.06 : 0) + (st.pet > 0.3 ? 0.03 : 0);
+    // --- queue : courbe en S, balancement, petits coups de bout de queue
+    flickT -= dt;
+    if (flickT < 0) { flick = 1; flickT = playing || st.target === 'crouch' ? rand(0.5, 1.5) : rand(3, 8); }
+    flick = Math.max(0, flick - dt * 3);
+    const n = m.tail.length;
     const happy = st.target === 'greet' || st.target === 'petSit';
+    const freq = st.target === 'crouch' ? 6 : sleeping ? 0.6 : 1.6;
     m.tail.forEach((s, i) => {
-      const w = Math.sin(time * (st.target === 'crouch' ? 6 : 1.8) - i * 0.55) * wagAmp * (0.4 + i * 0.25);
-      s.rotation.x = i === 0 ? P.tl : P.tc + (happy && i > 4 ? -0.25 : 0);
-      s.rotation.y = P.ts + w;
+      const u = i / (n - 1);
+      const wave = Math.sin(time * freq - i * 0.55);
+      const a = P.tw * (0.3 + u * 1.2) + W * 0.05;
+      s.rotation.x = i === 0 ? P.tl : P.tc + (happy && i >= n - 3 ? -0.4 : 0) + (W > 0.3 && i > 2 ? Math.sin(g * Math.PI * 2 - i * 0.6) * 0.04 : 0);
+      s.rotation.y = P.ts + wave * a + (u > 0.6 ? Math.sin(flick * Math.PI) * 0.25 : 0);
     });
   }
 
