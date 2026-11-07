@@ -5,6 +5,8 @@ Refuge 3D pour hypersensibles : une cabane en rondins, cosy, où l'on se balade 
 - **Pièces** : salon avec cheminée, cuisine, chambre, salle de bain, coin lecture
 - **Feu de cheminée** animé, avec un crépitement synthétisé qui s'adoucit quand on s'éloigne
 - **Jour et nuit réels** : la position du soleil est calculée pour Paris, à l'heure actuelle
+- **Dehors** : prairie, lac et montagnes façon Annecy, ponton et barque, forêt qui change avec les **saisons**
+- **Météo en direct à Annecy** (Open-Meteo) : nuages, pluie, neige au sol, brouillard, vent dans les arbres, pluie sur le toit
 
 ## Jouer
 
@@ -17,7 +19,7 @@ Refuge 3D pour hypersensibles : une cabane en rondins, cosy, où l'on se balade 
 - Mobile : pouce gauche pour marcher, glisser à droite pour regarder
 - Ordinateur : flèches ou ZQSD, cliquer-glisser pour regarder
 
-Pour tester une autre heure : ajouter `?heure=21` ou `?heure=7:30` à l'adresse.
+Pour tester : ajouter à l'adresse `?heure=21`, `?saison=hiver` (printemps, ete, automne, hiver) ou `?meteo=pluie` (clair, nuageux, couvert, brouillard, pluie, averse, neige, orage). On peut combiner : `?heure=17&saison=hiver&meteo=neige`.
 
 ## Technique
 

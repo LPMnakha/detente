@@ -108,9 +108,10 @@ export function buildCabin(scene, { shadows = true } = {}) {
   }
   function doorTrim(o, z, wide = false) {
     const { a, b, y1 } = o, f = wide ? 0.1 : 0.07, d0 = z - T / 2 - 0.03, d1 = z + T / 2 + 0.03;
-    B.box(a - f, 0, d0, a, y1 + f, d1, C.frame);
-    B.box(b, 0, d0, b + f, y1 + f, d1, C.frame);
-    B.box(a - f, y1, d0, b + f, y1 + f, d1, C.frame);
+    // l'encadrement mord légèrement dans l'ouverture : pas de faces superposées au mur
+    B.box(a - f, 0, d0, a + 0.025, y1 + f, d1, C.frame);
+    B.box(b - 0.025, 0, d0, b + f, y1 + f, d1, C.frame);
+    B.box(a - f, y1 - 0.025, d0, b + f, y1 + f, d1, C.frame);
   }
   function frontDoor(o, z) {
     const { a, b, y1 } = o;
@@ -132,21 +133,21 @@ export function buildCabin(scene, { shadows = true } = {}) {
 
   // Extérieurs
   wallRun(-6 - T / 2, -8 - T, 8 + T, [win(-6.6, -4.6, 1.05, 2.25), win(4.9, 7.3, 0.55, 2.4)]);
-  wallRun(6 + T / 2, -8 - T, 8 + T, [win(-6.6, -5.4, 1.5, 2.25), win(-2.6, -1.3, 0.9, 2.2), door(-0.25, 0.75, true), win(1.7, 3.3, 0.9, 2.3), win(5.6, 6.9, 1.0, 2.2)]);
-  wallRunZ(-8 - T / 2, -6, 6, [win(-4.1, -2.3, 1.0, 2.2)]);
-  wallRunZ(8 + T / 2, -6, 6, [win(-5.1, -2.1, 0.55, 2.4), win(2.0, 3.4, 1.0, 2.2)]);
+  wallRun(6 + T / 2, -8 - T, 8 + T, [win(-6.6, -5.4, 1.5, 2.25), win(-2.6, -1.3, 0.9, 2.2), door(-0.25, 0.75, true), win(1.7, 3.3, 0.9, 2.3), win(5.6, 6.9, 1.32, 2.3)]);
+  wallRunZ(-8 - T / 2, -6.1, 6.1, [win(-4.1, -2.3, 1.0, 2.2)]);
+  wallRunZ(8 + T / 2, -6.1, 6.1, [win(-5.1, -2.1, 0.55, 2.4), win(2.0, 3.4, 1.0, 2.2)]);
   // Intérieurs
-  wallRunZ(-3, -6, 6, [door(-3.9, -2.8), door(2.3, 3.3)]);
-  wallRunZ(4, -6, 6, [{ a: -5.2, b: -0.9, y0: 0, y1: 2.3, kind: 'arch' }, door(2.3, 3.3)]);
-  wallRun(0, -8, -3 - T / 2);
-  wallRun(0, 4 + T / 2, 8);
+  wallRunZ(-3, -6.1, 6.1, [door(-3.9, -2.8), door(2.3, 3.3)]);
+  wallRunZ(4, -6.1, 6.1, [{ a: -5.2, b: -0.9, y0: 0, y1: 2.3, kind: 'arch' }, door(2.3, 3.3)]);
+  wallRun(0, -8.1, -3);
+  wallRun(0, 4, 8.1);
 
   // ---------- sols, plafond, poutres ----------
   B.box(-3, -0.1, -6, 4, 0, 6, 0xffffff, 'floor', { uv: 2.2 });
   B.box(4, -0.1, -6, 8, 0, 6, 0xffffff, 'floor', { uv: 2.2 });
   B.box(-8, -0.1, -6, -3, 0, 0, 0xffffff, 'terracotta', { uv: 1.6 });
   B.box(-8, -0.1, 0, -3, 0, 6, 0xffffff, 'bathtile', { uv: 1.5 });
-  B.box(-8.3, H, -6.3, 8.3, H + 0.12, 6.3, 0xffffff, 'ceiling', { uv: 2.4 });
+  B.box(-8.3, H, -6.3, 8.3, H + 0.45, 6.3, 0xffffff, 'ceiling', { uv: 2.4 });
   for (let z = -5; z <= 5; z += 2) B.box(-8, H - 0.18, z - 0.1, 8, H, z + 0.1, C.beam);
   // plinthes discrètes
   const base = (x0, z0, x1, z1) => B.box(x0, 0, z0, x1, 0.08, z1, C.woodDark);
@@ -257,6 +258,15 @@ export function buildCabin(scene, { shadows = true } = {}) {
   bathroom(B, lights);
 
   const meshes = B.build(scene, { shadows });
+  // Toit « d'ombre » au-dessus du plafond : invisible, il projette l'ombre du toit
+  // et évite les fuites de soleil à la jonction murs/plafond.
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(17.4, 0.3, 13.4),
+    new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false })
+  );
+  roof.position.set(0, H + 1.05, 0);
+  roof.castShadow = shadows;
+  scene.add(roof);
   return { colliders: B.colliders, lights, glowMat, meshes, C };
 }
 

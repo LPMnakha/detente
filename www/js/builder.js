@@ -133,7 +133,7 @@ function worldUV(g, tile) {
   g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
 }
 
-function merge(list) {
+export function merge(list) {
   let vCount = 0, iCount = 0;
   const parts = list.map((g) => {
     const ng = g.index ? g : g;
@@ -171,4 +171,16 @@ function merge(list) {
   out.setIndex(new THREE.BufferAttribute(idx, 1));
   out.computeBoundingSphere();
   return out;
+}
+
+// Géométrie à couleurs de sommets fusionnée : parts = [[geometry, couleur], ...]
+export function mergeColored(parts) {
+  const c = new THREE.Color();
+  return merge(parts.map(([g, color]) => {
+    c.set(color);
+    const n = g.attributes.position.count, a = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) { a[i * 3] = c.r; a[i * 3 + 1] = c.g; a[i * 3 + 2] = c.b; }
+    g.setAttribute('color', new THREE.BufferAttribute(a, 3));
+    return g;
+  }));
 }

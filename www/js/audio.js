@@ -77,6 +77,40 @@ export function createFireAudio() {
   }
   const timer = setInterval(schedule, 120);
 
+  // pluie sur le toit (assourdie par la cabane) et vent dehors, très discrets
+  const rainSrc = ctx.createBufferSource();
+  rainSrc.buffer = buf;
+  rainSrc.loop = true;
+  rainSrc.playbackRate.value = 1.3;
+  const rainHp = ctx.createBiquadFilter();
+  rainHp.type = 'highpass';
+  rainHp.frequency.value = 500;
+  const rainLp = ctx.createBiquadFilter();
+  rainLp.type = 'lowpass';
+  rainLp.frequency.value = 2600;
+  const rainGain = ctx.createGain();
+  rainGain.gain.value = 0;
+  rainSrc.connect(rainHp).connect(rainLp).connect(rainGain).connect(master);
+  rainSrc.start(0, 1.7);
+  const windSrc = ctx.createBufferSource();
+  windSrc.buffer = buf;
+  windSrc.loop = true;
+  windSrc.playbackRate.value = 0.5;
+  const windBp = ctx.createBiquadFilter();
+  windBp.type = 'bandpass';
+  windBp.frequency.value = 380;
+  windBp.Q.value = 0.7;
+  const windGain = ctx.createGain();
+  windGain.gain.value = 0;
+  windSrc.connect(windBp).connect(windGain).connect(master);
+  windSrc.start(0, 0.9);
+  const windLfo = ctx.createOscillator();
+  windLfo.frequency.value = 0.07;
+  const windLfoGain = ctx.createGain();
+  windLfoGain.gain.value = 120;
+  windLfo.connect(windLfoGain).connect(windBp.frequency);
+  windLfo.start();
+
   let on = true;
   return {
     ctx,
@@ -87,6 +121,10 @@ export function createFireAudio() {
     setDistance(dist, sameRoom) {
       const v = (1 / (1 + dist * dist * 0.09)) * (sameRoom ? 1 : 0.35);
       fireBus.gain.setTargetAtTime(Math.min(1, v * 1.3), ctx.currentTime, 0.25);
+    },
+    setWeather(rain, wind) {
+      rainGain.gain.setTargetAtTime(rain * 0.22, ctx.currentTime, 2);
+      windGain.gain.setTargetAtTime(Math.max(0, wind - 0.2) * 0.12, ctx.currentTime, 2);
     },
     toggle() {
       on = !on;
