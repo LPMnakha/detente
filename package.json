@@ -1,0 +1,14 @@
+{
+  "name": "detente",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Refuge 3D pour hypersensibles : une cabane cosy au coin du feu.",
+  "scripts": {
+    "serve": "npx http-server www -p 8080 -c-1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/cli": "^7.0.0",
+    "@capacitor/core": "^7.0.0"
+  }
+}
