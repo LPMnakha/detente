@@ -107,6 +107,15 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) audio.ctx.suspend(); else if (audio.on) audio.ctx.resume();
 });
 
+// ---------- sols (pour les bruits de pas)
+let lastStep = null, stepDist = 0;
+function floorAt(x, z) {
+  const inRect = (x0, z0, x1, z1) => x > x0 && x < x1 && z > z0 && z < z1;
+  if (inRect(-1, -4.7, 2, -1.6) || inRect(0.6, 2.2, 3.6, 5.2) || inRect(4.7, 2.2, 7.6, 5.0) || inRect(-6.65, -5.35, -4.05, -4.8) || Math.hypot(x - 6.0, z + 3.15) < 1.45) return 'tapis';
+  if (x < -3) return 'carrelage';
+  return 'bois';
+}
+
 // ---------- boucle ----------
 let last = performance.now(), skyTimer = 0, t = 0;
 function frame(now) {
@@ -127,6 +136,18 @@ function frame(now) {
 
   outside.update(t, dt, wNow, sky.state);
   controls.update(dt);
+  // bruits de pas : un pas tous les ~65 cm, selon le sol
+  {
+    const p = controls.state.pos;
+    if (lastStep) {
+      const moved = Math.hypot(p.x - lastStep.x, p.z - lastStep.z);
+      if (controls.state.enabled && !controls.state.override && moved < 0.5) stepDist += moved;
+      if (stepDist > 0.65) { stepDist = 0; if (audio) audio.step(floorAt(p.x, p.z)); }
+      const speed = moved / Math.max(dt, 1e-3);
+      if (speed < 0.15) stepDist = Math.min(stepDist, 0.45); // premier pas rapide quand on repart
+    }
+    lastStep = { x: p.x, z: p.z };
+  }
   {
     const p = controls.state.pos, rs = romi.state;
     const dRomi = Math.hypot(p.x - rs.x, p.z - rs.z);

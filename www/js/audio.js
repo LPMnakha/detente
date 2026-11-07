@@ -206,10 +206,59 @@ export function createFireAudio() {
     s.start(t, Math.random() * 2); s.stop(t + 1.4); lfo.start(t); lfo.stop(t + 1.4);
   }
 
+  // ---------- pas : parquet (sourd, petit craquement parfois), carrelage (plus net), tapis (feutré)
+  let stepN = 0;
+  function step(surface = 'bois') {
+    const t = ctx.currentTime + 0.005;
+    stepN++;
+    const heel = stepN % 2 ? 1 : 0.85; // léger déséquilibre gauche/droite
+    const vol = (surface === 'tapis' ? 0.35 : surface === 'carrelage' ? 0.75 : 0.9) * heel * (0.85 + Math.random() * 0.3);
+    // impact sourd
+    const thump = ctx.createOscillator();
+    thump.type = 'sine';
+    thump.frequency.setValueAtTime(surface === 'carrelage' ? 140 : 95, t);
+    thump.frequency.exponentialRampToValueAtTime(55, t + 0.09);
+    const tg = ctx.createGain();
+    tg.gain.setValueAtTime(0.0001, t);
+    tg.gain.exponentialRampToValueAtTime(0.16 * vol, t + 0.008);
+    tg.gain.exponentialRampToValueAtTime(0.0001, t + 0.13);
+    thump.connect(tg).connect(master);
+    thump.start(t); thump.stop(t + 0.16);
+    // frottement
+    const s = ctx.createBufferSource();
+    s.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = surface === 'carrelage' ? 'bandpass' : 'lowpass';
+    f.frequency.value = surface === 'carrelage' ? 2600 : surface === 'tapis' ? 380 : 700;
+    f.Q.value = 0.9;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime((surface === 'carrelage' ? 0.1 : 0.14) * vol, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + (surface === 'tapis' ? 0.12 : 0.09));
+    s.connect(f).connect(g).connect(master);
+    s.start(t, Math.random() * 3); s.stop(t + 0.15);
+    // petit craquement du vieux parquet, de temps en temps
+    if (surface === 'bois' && Math.random() < 0.12) {
+      const c = ctx.createOscillator();
+      c.type = 'triangle';
+      const base = 260 + Math.random() * 180;
+      c.frequency.setValueAtTime(base, t + 0.04);
+      c.frequency.linearRampToValueAtTime(base * 0.8, t + 0.3);
+      const cf = ctx.createBiquadFilter();
+      cf.type = 'bandpass'; cf.frequency.value = base * 2; cf.Q.value = 6;
+      const cg = ctx.createGain();
+      cg.gain.setValueAtTime(0.0001, t + 0.04);
+      cg.gain.exponentialRampToValueAtTime(0.035, t + 0.08);
+      cg.gain.exponentialRampToValueAtTime(0.0001, t + 0.32);
+      c.connect(cf).connect(cg).connect(master);
+      c.start(t + 0.04); c.stop(t + 0.35);
+    }
+  }
+
   let on = true;
   return {
-    meow, kibble, pour,
-    setPurr(level) { purrGain.gain.setTargetAtTime(level * 0.55, ctx.currentTime, 0.3); },
+    meow, kibble, pour, step,
+    setPurr(level) { purrGain.gain.setTargetAtTime(Math.min(1.4, level * 1.25), ctx.currentTime, 0.3); },
     ctx,
     async start() {
       if (ctx.state !== 'running') await ctx.resume();
@@ -221,7 +270,7 @@ export function createFireAudio() {
     },
     setWeather(rain, wind) {
       rainGain.gain.setTargetAtTime(rain * 0.22, ctx.currentTime, 2);
-      windGain.gain.setTargetAtTime(Math.max(0, wind - 0.2) * 0.12, ctx.currentTime, 2);
+      windGain.gain.setTargetAtTime(Math.max(0, wind - 0.25) * 0.05, ctx.currentTime, 2);
     },
     toggle() {
       on = !on;
