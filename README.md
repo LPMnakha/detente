@@ -23,6 +23,6 @@ Pour tester une autre heure : ajouter `?heure=21` ou `?heure=7:30` à l'adresse.
 
 - Three.js (r169, inclus dans `www/vendor`), sans étape de build : le dossier `www` est le site
 - Textures et sons générés par le code, aucun fichier média
-- `.github/workflows/pages.yml` publie `www` sur GitHub Pages
+- GitHub Pages publie la branche `main` ; l'`index.html` racine renvoie vers `www/`
 - `.github/workflows/android.yml` emballe `www` avec Capacitor et publie l'APK
 - En local : `npx http-server www` puis ouvrir http://localhost:8080
