@@ -204,6 +204,9 @@ export function buildCabin(scene, { shadows = true } = {}) {
   curtains(B, 'z', 6 - 0.13, 1.7, 3.3, 2.38, C.cream);
   curtains(B, 'z', 6 - 0.13, -2.6, -1.3, 2.3, C.cream);
 
+  // panier de Romi sur l'âtre, au chaud près du feu
+  catBasket(B, 1.72, 0.1, -4.97);
+
   // ================= COIN LECTURE =================
   const rr = new THREE.CircleGeometry(1.45, 28);
   rr.rotateX(-Math.PI / 2);
@@ -223,7 +226,10 @@ export function buildCabin(scene, { shadows = true } = {}) {
   bookshelf(B, 3.6, 2.3, 0.34);
   B.pop();
   plant(B, 4.6, -5.55, 'tall');
-  plant(B, 7.55, -5.6, 'bush');
+  // banquette sous la grande fenêtre (vue sur le lac)
+  windowSeat(B, 4.95, 7.0, -5.98, -5.45);
+  // arbre à chat dans l'angle des deux fenêtres
+  catTree(B, 7.45, -5.35);
   // panier à plaids
   B.cyl(4.55, 0, -1.2, 0.26, 0.22, 0.4, C.woodHoney, 10, 'plain', { collide: true });
   B.blob(4.55, 0.42, -1.2, 0.24, 0.12, 0.22, C.rose, 1);
@@ -249,6 +255,16 @@ export function buildCabin(scene, { shadows = true } = {}) {
   dresser(B);
   B.pop();
   plant(B, 4.38, 0.45, 'bush');
+  plant(B, 7.62, 1.2, 'tall');
+  // banc au pied du lit, cadres, chaise avec gilet
+  B.push(6.0, 0, 3.45, 0);
+  bench(B);
+  B.pop();
+  frames(B, 4 + T / 2 + 0.02, 1.55, 4.55, Math.PI / 2);
+  B.push(7.45, 0, 2.05, -Math.PI / 2 - 0.35);
+  chair(B);
+  B.box(-0.2, 0.5, -0.19, 0.2, 0.86, -0.12, C.dusty); // gilet sur le dossier
+  B.pop();
   curtains(B, 'x', 8 - 0.13, 2.0, 3.4, 2.3, C.sage);
 
   // ================= CUISINE =================
@@ -694,7 +710,10 @@ function kitchen(B, lights) {
   rail.rotateZ(Math.PI / 2);
   rail.translate(-4.1, 1.3, Z + 0.03);
   B.add(rail, C.brass);
-  for (let i = 0; i < 4; i++) B.box(-4.4 + i * 0.18, 1.05, Z + 0.02, -4.38 + i * 0.18, 1.3, Z + 0.04, C.woodDark);
+  for (let i = 0; i < 4; i++) {
+    B.box(-4.4 + i * 0.18, 1.08, Z + 0.02, -4.38 + i * 0.18, 1.3, Z + 0.04, C.woodDark);
+    B.blob(-4.39 + i * 0.18, 1.05, Z + 0.04, 0.035, 0.05, 0.015, i % 2 ? C.woodDark : 0x9a9690, 0); // louche, spatule...
+  }
   // garde-manger
   B.box(-7.9, 0, -0.95, -7.2, 2.1, -0.15, 0x8a9e86, 'plain', { collide: true });
   B.box(-7.2, 0.1, -0.9, -7.19, 2.0, -0.2, 0x96aa92);
@@ -717,39 +736,114 @@ function kitchen(B, lights) {
   B.cyl(-5.5, 1.75, -2.7, 0.04, 0.26, 0.22, 0x5f7a66, 10);
   B.blob(-5.5, 1.73, -2.7, 0.06, 0.06, 0.06, 0xfff0d0, 1, 'glow');
   lights.push({ pos: new THREE.Vector3(-5.5, 1.62, -2.7), room: 'cuisine', strength: 1.0 });
-  const rg = new THREE.PlaneGeometry(2.2, 1.0);
+  // tapis de passage devant le plan de travail
+  const rg = new THREE.PlaneGeometry(2.6, 0.55);
   rg.rotateX(-Math.PI / 2);
-  rg.translate(-5.5, 0.012, -1.0);
+  rg.translate(-5.35, 0.012, -5.08);
   B.add(rg, 0xffffff, 'rug1');
+  // planche à pain, miche et torchon
+  B.box(-4.55, 0.92, -5.78, -4.1, 0.95, -5.5, C.woodLight);
+  B.blob(-4.33, 0.99, -5.64, 0.13, 0.06, 0.08, 0xc98c4a, 1);
+  B.box(-6.2, 0.55, Z + 0.605, -6.05, 0.8, Z + 0.62, C.cream);
+  // corbeille de fruits et bocal à ustensiles
+  B.cyl(-3.85, 0.92, -5.7, 0.06, 0.05, 0.14, C.potCream, 8);
+  for (let i = 0; i < 3; i++) B.cyl(-3.85 + (i - 1) * 0.025, 1.0, -5.7, 0.008, 0.008, 0.2, C.woodDark, 4);
+}
+
+function catBasket(B, x, y, z) {
+  B.cyl(x, y, z, 0.3, 0.26, 0.05, C.woodHoney, 12, 'plain', { collide: true });
+  const ring = new THREE.TorusGeometry(0.27, 0.06, 6, 14);
+  ring.rotateX(Math.PI / 2);
+  ring.translate(x, y + 0.1, z);
+  B.add(ring, C.woodHoney);
+  B.blob(x, y + 0.07, z, 0.24, 0.05, 0.24, C.cream, 1);
+}
+
+function windowSeat(B, x0, x1, z0, z1) {
+  B.box(x0, 0, z0, x1, 0.4, z1, C.woodHoney, 'plain', { collide: true });
+  B.box(x0 + 0.03, 0.06, z1, x1 - 0.03, 0.34, z1 + 0.01, C.wood);
+  B.box(x0 + 0.02, 0.4, z0 + 0.02, x1 - 0.02, 0.48, z1 - 0.02, C.sage);
+  B.blob(x0 + 0.3, 0.62, z0 + 0.14, 0.22, 0.16, 0.08, C.rose, 1);
+  B.blob(x1 - 0.3, 0.62, z0 + 0.14, 0.22, 0.16, 0.08, C.cream, 1);
+  B.box(x1 - 0.9, 0.48, z0 + 0.1, x1 - 0.5, 0.51, z1 - 0.06, C.mustard); // plaid plié
+}
+
+function catTree(B, x, z) {
+  B.box(x - 0.32, 0, z - 0.3, x + 0.32, 0.06, z + 0.3, C.creamDark, 'plain', { collide: true });
+  for (const [px, pz, h] of [[-0.18, 0.15, 0.55], [0.15, -0.12, 1.15]]) B.cyl(x + px, 0.06, z + pz, 0.06, 0.06, h, 0xc9b48a, 8); // poteaux en sisal
+  B.box(x - 0.32, 0.55, z - 0.05, x + 0.05, 0.6, z + 0.3, C.creamDark);
+  B.cyl(x - 0.13, 0.6, z + 0.14, 0.17, 0.17, 0.03, C.sage, 10);
+  B.cyl(x + 0.1, 1.15, z - 0.12, 0.28, 0.28, 0.05, C.creamDark, 12);
+  const ring = new THREE.TorusGeometry(0.25, 0.05, 6, 14);
+  ring.rotateX(Math.PI / 2);
+  ring.translate(x + 0.1, 1.24, z - 0.12);
+  B.add(ring, C.creamDark);
+  B.blob(x + 0.1, 1.22, z - 0.12, 0.22, 0.04, 0.22, C.sage, 1);
+  // pompon suspendu
+  B.cyl(x - 0.25, 0.32, z + 0.25, 0.003, 0.003, 0.23, 0x8a7a55, 3);
+  B.blob(x - 0.25, 0.3, z + 0.25, 0.035, 0.035, 0.035, C.rose, 0);
+}
+
+function dryingRack(B, x, z) {
+  // étendoir tour, comme à la maison : Romi aime dormir sur l'étage du bas
+  const w = 0.42, d = 0.28;
+  for (const [px, pz] of [[-w, -d], [w, -d], [-w, d], [w, d]]) B.cyl(x + px, 0, z + pz, 0.012, 0.012, 1.6, 0xf2f2f2, 5);
+  for (const y of [0.55, 1.0, 1.45]) {
+    for (const s of [-1, 1]) {
+      B.box(x - w, y, z + s * d - 0.008, x + w, y + 0.016, z + s * d + 0.008, 0xf2f2f2);
+      B.box(x + s * w - 0.008, y, z - d, x + s * w + 0.008, y + 0.016, z + d, 0xf2f2f2);
+    }
+    for (let k = -3; k <= 3; k++) B.box(x + k * 0.12 - 0.005, y, z - d, x + k * 0.12 + 0.005, y + 0.012, z + d, 0xf2f2f2);
+    for (const s of [-1, 1]) B.box(x - 0.03 + s * w, y - 0.01, z + d - 0.03, x + 0.03 + s * w, y + 0.03, z + d + 0.01, 0x7ab8d0); // clips bleus
+  }
+  // linge étendu (en haut) et en vrac sur l'étage du bas
+  const cloth = [0x2c3140, 0x6f86a8, 0xe9e6e0, 0x3a3f4f, 0x8f9db3];
+  for (let k = 0; k < 5; k++) {
+    const cx = x - 0.34 + k * 0.17, col = cloth[k];
+    B.box(cx - 0.07, 1.45 - 0.55 - R() * 0.25, z - 0.01, cx + 0.07, 1.47, z + 0.01, col);
+  }
+  B.box(x - 0.38, 1.0 - 0.35, z + d - 0.02, x - 0.05, 1.02, z + d, 0xe8e2d8);
+  for (let s = 0; s < 3; s++) B.blob(x - 0.25 + s * 0.22, 0.6, z + (R() - 0.5) * 0.15, 0.13, 0.04, 0.15, pick([0x2c3140, 0x4a4f5e, 0xd9d5cc]), 1);
+  B.collideLocal(x - w, z - d, x + w, z + d);
 }
 
 function chair(B) {
   B.box(-0.21, 0.44, -0.2, 0.21, 0.48, 0.2, C.wood);
   B.collideLocal(-0.21, -0.2, 0.21, 0.2);
   for (const [x, z] of [[-0.18, -0.17], [0.18, -0.17], [-0.18, 0.17], [0.18, 0.17]]) B.box(x - 0.02, 0, z - 0.02, x + 0.02, 0.44, z + 0.02, C.woodDark);
-  for (const x of [-0.18, 0.18]) B.box(x - 0.02, 0.48, 0.15, x + 0.02, 0.92, 0.19, C.woodDark);
-  B.box(-0.2, 0.68, 0.15, 0.2, 0.9, 0.18, C.wood);
+  // dossier à l'arrière (-z) : l'assise regarde la table
+  for (const x of [-0.18, 0.18]) B.box(x - 0.02, 0.48, -0.19, x + 0.02, 0.92, -0.15, C.woodDark);
+  B.box(-0.2, 0.68, -0.18, 0.2, 0.9, -0.15, C.wood);
   B.blob(0, 0.5, 0, 0.17, 0.03, 0.17, C.terracotta, 1);
 }
 
 function bathroom(B, lights) {
   // baignoire sur pieds contre le mur ouest
-  const tub = new THREE.CylinderGeometry(0.42, 0.36, 0.5, 14);
+  const tub = new THREE.CylinderGeometry(0.42, 0.36, 0.5, 16, 1, true);
   tub.scale(1.0, 1, 1.85);
   tub.translate(-7.25, 0.12 + 0.25, 4.4);
   B.add(tub, C.white);
-  const water = new THREE.CylinderGeometry(0.36, 0.36, 0.02, 14);
+  const inner = new THREE.CylinderGeometry(0.38, 0.33, 0.48, 16, 1, true);
+  inner.scale(-1, 1, 1.85); // faces tournées vers l'intérieur
+  inner.translate(-7.25, 0.14 + 0.24, 4.4);
+  B.add(inner, 0xe9e4da);
+  const bottom = new THREE.CylinderGeometry(0.36, 0.36, 0.02, 16);
+  bottom.scale(1, 1, 1.85);
+  bottom.translate(-7.25, 0.12, 4.4);
+  B.add(bottom, C.white);
+  const water = new THREE.CylinderGeometry(0.37, 0.37, 0.02, 16);
   water.scale(1, 1, 1.85);
-  water.translate(-7.25, 0.58, 4.4);
-  B.add(water, 0x9cc4c8);
-  const rim = new THREE.CylinderGeometry(0.44, 0.42, 0.04, 14);
-  rim.scale(1, 1, 1.85);
-  rim.translate(-7.25, 0.6, 4.4);
-  B.add(rim, C.white);
+  water.translate(-7.25, 0.42, 4.4);
+  B.add(water, 0xa6cdd0);
+  const rimG = new THREE.TorusGeometry(0.405, 0.03, 5, 20);
+  rimG.rotateX(Math.PI / 2);
+  rimG.scale(1, 1, 1.85);
+  rimG.translate(-7.25, 0.62, 4.4);
+  B.add(rimG, C.white);
   for (const [dx, dz] of [[-0.25, -0.5], [0.25, -0.5], [-0.25, 0.5], [0.25, 0.5]]) B.blob(-7.25 + dx, 0.07, 4.4 + dz, 0.05, 0.08, 0.05, C.brass, 0);
   B.collideLocal(-7.75, 3.55, -6.75, 5.25);
-  candle(B, -6.85, 0.62, 3.75, 0.1);
-  candle(B, -6.8, 0.62, 3.9, 0.07);
+  candle(B, -7.25, 0.63, 3.66, 0.1);
+  candle(B, -7.13, 0.63, 3.71, 0.07);
   // robinetterie
   B.cyl(-7.85, 0.6, 4.4, 0.02, 0.02, 0.35, C.brass, 6);
   B.blob(-7.78, 0.95, 4.4, 0.06, 0.02, 0.03, C.brass, 0);
@@ -760,6 +854,19 @@ function bathroom(B, lights) {
   B.box(-6.7, 0.44, 5.32, -6.4, 0.5, 5.58, C.cream);
   B.box(-6.68, 0.5, 5.34, -6.42, 0.56, 5.56, C.rose);
   candle(B, -6.48, 0.56, 5.4, 0.08);
+  // étendoir à linge
+  dryingRack(B, -4.75, 4.15);
+  // étagère au-dessus des toilettes : serviettes roulées, bougie, plante
+  B.box(-4.1, 1.45, 5.72, -3.15, 1.49, 6.0, C.woodHoney);
+  for (let i = 0; i < 3; i++) {
+    const t = new THREE.CylinderGeometry(0.06, 0.06, 0.22, 8);
+    t.rotateX(Math.PI / 2);
+    t.translate(-4.0 + i * 0.13, 1.55, 5.86);
+    B.add(t, [C.cream, C.sage, C.cream][i]);
+  }
+  candle(B, -3.55, 1.49, 5.86, 0.1);
+  B.cyl(-3.3, 1.49, 5.86, 0.06, 0.05, 0.09, C.potCream, 7);
+  for (let i = 0; i < 4; i++) B.blob(-3.3 + (R() - 0.5) * 0.08, 1.63 + R() * 0.05, 5.86 + (R() - 0.5) * 0.06, 0.05, 0.05, 0.05, pick(C.leaf), 0);
   // tapis de bain
   B.box(-6.6, 0, 3.9, -6.0, 0.015, 4.9, C.sage);
   // meuble vasque + miroir + applique

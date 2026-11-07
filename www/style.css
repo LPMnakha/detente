@@ -63,3 +63,37 @@ canvas#c { position: fixed; inset: 0; width: 100%; height: 100%; display: block;
 
 #meteo { margin-top: 10px; font-size: 13px; color: var(--ink-soft); opacity: 0; transition: opacity 1.2s ease; min-height: 1.2em; }
 #meteo.on { opacity: 0.85; }
+
+/* Romi : étiquette, indices, actions */
+#romi-tag {
+  position: fixed; top: calc(18px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  padding: 7px 16px; border-radius: 999px; font-size: 14px; letter-spacing: 0.02em;
+  background: rgba(20, 13, 9, 0.38); color: var(--ink); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  opacity: 0; transition: opacity 0.6s ease; pointer-events: none; white-space: nowrap;
+}
+#romi-tag.on { opacity: 1; }
+#hint-pill {
+  position: fixed; bottom: calc(26px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
+  padding: 8px 16px; border-radius: 999px; font-size: 14px; color: var(--ink-soft);
+  background: rgba(20, 13, 9, 0.32); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  opacity: 0; transition: opacity 0.8s ease; pointer-events: none; white-space: nowrap;
+}
+#hint-pill.on { opacity: 1; }
+#actions {
+  position: fixed; bottom: calc(22px + env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%) translateY(10px);
+  display: flex; gap: 10px; opacity: 0; pointer-events: none; transition: opacity 0.5s ease, transform 0.5s ease;
+}
+#actions.on { opacity: 1; pointer-events: auto; transform: translateX(-50%); }
+#actions button {
+  appearance: none; font: inherit; font-size: 15px; color: var(--ink); cursor: pointer;
+  padding: 11px 20px; border-radius: 999px; border: 1px solid rgba(244, 233, 218, 0.25);
+  background: rgba(20, 13, 9, 0.42); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+#actions button.active { background: rgba(233, 160, 97, 0.32); border-color: rgba(233, 160, 97, 0.6); }
+#pet-cursor {
+  position: fixed; left: -28px; top: -28px; width: 56px; height: 56px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 236, 214, 0.45), rgba(255, 236, 214, 0) 70%);
+  pointer-events: none; opacity: 0; transition: opacity 0.25s ease;
+}
+#pet-cursor.on { opacity: 1; }

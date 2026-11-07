@@ -8,6 +8,14 @@ Refuge 3D pour hypersensibles : une cabane en rondins, cosy, où l'on se balade 
 - **Dehors** : prairie, lac et montagnes façon Annecy, ponton et barque, forêt qui change avec les **saisons**
 - **Météo en direct à Annecy** (Open-Meteo) : nuages, pluie, neige au sol, brouillard, vent dans les arbres, pluie sur le toit
 
+## Romi
+
+Romi, la chatte de la maison, vit sa vie : elle se promène, dort dans ses coins favoris (panier près du feu, étendoir, lit, banquette de la fenêtre, arbre à chat…), fait sa toilette, s'étire, joue avec la canne et vient te dire bonjour.
+
+- **Caresser** : approche-toi et touche Romi, puis glisse le doigt sur elle (elle ronronne)
+- **Jouer** : bouton « Jouer », puis fais glisser le ruban doré au sol devant elle
+- **Gamelles** (cuisine) : touche une gamelle pour la remplir. Elle les vide au fil des heures, même appli fermée ; si elles sont vides, elle attend à côté, sans jamais être malade.
+
 ## Jouer
 
 - **iPhone / navigateur** : https://lpmnakha.github.io/detente/

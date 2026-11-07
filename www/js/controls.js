@@ -12,6 +12,7 @@ export function createControls(camera, dom, colliders, { eye = 1.6, radius = 0.2
     joy: { id: null, ox: 0, oy: 0, x: 0, y: 0 },
     look: { id: null, lx: 0, ly: 0 },
     enabled: false,
+    override: false,
   };
   const SPEED = 1.7, LOOK = 0.0042;
 
@@ -101,6 +102,7 @@ export function createControls(camera, dom, colliders, { eye = 1.6, radius = 0.2
     st.vel.lerp(want, 1 - Math.exp(-dt * 7));
     st.pos.addScaledVector(st.vel, dt);
     collide(st.pos);
+    if (st.override) return; // la caméra est pilotée ailleurs (vue rapprochée de Romi)
     camera.position.copy(st.pos);
     camera.rotation.set(st.pitch, st.yaw, 0, 'YXZ');
   }

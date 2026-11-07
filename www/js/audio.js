@@ -111,8 +111,105 @@ export function createFireAudio() {
   windLfo.connect(windLfoGain).connect(windBp.frequency);
   windLfo.start();
 
+  // ---------- Romi : ronronnement, miaulements, croquettes, eau
+  const purrNoise = ctx.createBufferSource();
+  purrNoise.buffer = buf;
+  purrNoise.loop = true;
+  const purrBp = ctx.createBiquadFilter();
+  purrBp.type = 'lowpass';
+  purrBp.frequency.value = 260;
+  const purrAm = ctx.createGain();
+  purrAm.gain.value = 0.5;
+  const purrOsc = ctx.createOscillator();
+  purrOsc.type = 'triangle';
+  purrOsc.frequency.value = 26;
+  const purrDepth = ctx.createGain();
+  purrDepth.gain.value = 0.5;
+  purrOsc.connect(purrDepth).connect(purrAm.gain);
+  const purrBreath = ctx.createGain();
+  purrBreath.gain.value = 0.75;
+  const breathOsc = ctx.createOscillator();
+  breathOsc.frequency.value = 0.38;
+  const breathDepth = ctx.createGain();
+  breathDepth.gain.value = 0.25;
+  breathOsc.connect(breathDepth).connect(purrBreath.gain);
+  const purrGain = ctx.createGain();
+  purrGain.gain.value = 0;
+  purrNoise.connect(purrBp).connect(purrAm).connect(purrBreath).connect(purrGain).connect(master);
+  // un peu de grave tonal pour les petits haut-parleurs
+  const purrTone = ctx.createOscillator();
+  purrTone.type = 'sawtooth';
+  purrTone.frequency.value = 52;
+  const toneLp = ctx.createBiquadFilter();
+  toneLp.type = 'lowpass';
+  toneLp.frequency.value = 180;
+  const toneGain = ctx.createGain();
+  toneGain.gain.value = 0.18;
+  purrTone.connect(toneLp).connect(toneGain).connect(purrAm);
+  purrNoise.start(0, 2.3); purrOsc.start(); breathOsc.start(); purrTone.start();
+
+  function meow(vol = 1) {
+    const t = ctx.currentTime;
+    const short = Math.random() < 0.45; // « mrrp » ou « miaou »
+    const dur = short ? 0.28 : 0.55 + Math.random() * 0.2;
+    const base = 460 + Math.random() * 120;
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(base * (short ? 0.9 : 1), t);
+    osc.frequency.linearRampToValueAtTime(base * (short ? 1.25 : 1.55), t + dur * 0.35);
+    osc.frequency.linearRampToValueAtTime(base * (short ? 1.1 : 0.95), t + dur);
+    const vib = ctx.createOscillator();
+    vib.frequency.value = 7;
+    const vibG = ctx.createGain();
+    vibG.gain.value = 9;
+    vib.connect(vibG).connect(osc.frequency);
+    const f1 = ctx.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 900; f1.Q.value = 3;
+    const f2 = ctx.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 1900; f2.Q.value = 4;
+    f1.frequency.setValueAtTime(700, t); f1.frequency.linearRampToValueAtTime(1150, t + dur * 0.4); f1.frequency.linearRampToValueAtTime(800, t + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.09 * vol, t + 0.05);
+    g.gain.setValueAtTime(0.09 * vol, t + dur * 0.6);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    osc.connect(f1).connect(g);
+    osc.connect(f2).connect(g);
+    g.connect(master);
+    osc.start(t); vib.start(t);
+    osc.stop(t + dur + 0.05); vib.stop(t + dur + 0.05);
+  }
+  function kibble() {
+    const t = ctx.currentTime;
+    for (let i = 0; i < 28; i++) {
+      const s = ctx.createBufferSource();
+      s.buffer = pop;
+      s.playbackRate.value = 1.4 + Math.random();
+      const f = ctx.createBiquadFilter();
+      f.type = 'bandpass'; f.frequency.value = 2200 + Math.random() * 2500; f.Q.value = 2;
+      const g = ctx.createGain();
+      g.gain.value = 0.18 + Math.random() * 0.2;
+      s.connect(f).connect(g).connect(master);
+      s.start(t + i * 0.03 + Math.random() * 0.03);
+    }
+  }
+  function pour() {
+    const t = ctx.currentTime;
+    const s = ctx.createBufferSource();
+    s.buffer = buf;
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass'; f.frequency.value = 1100; f.Q.value = 1.2;
+    const lfo = ctx.createOscillator(); lfo.frequency.value = 9;
+    const lg = ctx.createGain(); lg.gain.value = 350;
+    lfo.connect(lg).connect(f.frequency);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.25, t + 0.1); g.gain.setValueAtTime(0.25, t + 0.9); g.gain.linearRampToValueAtTime(0, t + 1.3);
+    s.connect(f).connect(g).connect(master);
+    s.start(t, Math.random() * 2); s.stop(t + 1.4); lfo.start(t); lfo.stop(t + 1.4);
+  }
+
   let on = true;
   return {
+    meow, kibble, pour,
+    setPurr(level) { purrGain.gain.setTargetAtTime(level * 0.55, ctx.currentTime, 0.3); },
     ctx,
     async start() {
       if (ctx.state !== 'running') await ctx.resume();

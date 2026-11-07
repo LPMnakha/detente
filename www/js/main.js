@@ -6,6 +6,8 @@ import { createControls } from './controls.js';
 import { createFireAudio } from './audio.js';
 import { createOutside } from './outside.js';
 import { createWeather, seasonOf } from './weather.js';
+import { createRomi } from './romi.js';
+import { createInteract } from './interact.js';
 
 const mobile = matchMedia('(pointer: coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 const canvas = document.getElementById('c');
@@ -40,6 +42,19 @@ const lamps = cabin.lights.map((l) => {
 });
 
 const controls = createControls(camera, canvas, cabin.colliders);
+
+// Romi, la chatte de la maison
+let audio = null;
+const romi = createRomi(scene, {
+  colliders: cabin.colliders,
+  onMeow: (v, s) => {
+    if (!audio) return;
+    const p = controls.state.pos;
+    const d = Math.hypot(p.x - s.x, p.z - s.z);
+    audio.meow(v / (1 + d * d * 0.12));
+  },
+});
+const interact = createInteract({ camera, canvas, scene, romi, controls, colliders: cabin.colliders, getAudio: () => audio });
 const clock = makeClock();
 
 // météo en direct à Annecy (affichée discrètement sur l'écran d'accueil)
@@ -66,7 +81,6 @@ const soundBtn = document.getElementById('sound');
 document.getElementById('hint').textContent = mobile
   ? 'Pouce gauche pour marcher, glisse à droite pour regarder autour de toi.'
   : 'Flèches ou ZQSD pour marcher, clique-glisse pour regarder autour de toi.';
-let audio = null;
 document.getElementById('enter').addEventListener('click', async () => {
   intro.classList.add('gone');
   controls.state.enabled = true;
@@ -107,6 +121,13 @@ function frame(now) {
 
   outside.update(t, dt, wNow, sky.state);
   controls.update(dt);
+  {
+    const p = controls.state.pos, rs = romi.state;
+    const dRomi = Math.hypot(p.x - rs.x, p.z - rs.z);
+    romi.update(dt, { player: p, playerNear: dRomi < 4.5 && controls.state.enabled, night: sky.state.night > 0.6, cam: interact.mode === 'explore' ? null : camera.position });
+    interact.update(dt);
+    if (audio) audio.setPurr(rs.purr / (1 + dRomi * dRomi * 0.3));
+  }
   fire.update(t, dt);
   if (audio) {
     const p = controls.state.pos;
@@ -121,4 +142,4 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 
-window.__detente = { controls, sky, scene, camera, renderer, weather, ready: true };
+window.__detente = { controls, sky, scene, camera, renderer, weather, romi, interact, ready: true };
